@@ -1,0 +1,19 @@
+{
+  "button.buy_ticket": "Купить билет",
+  "modal_title.player_list": "Добавьте спутников",
+  "modal_label.player_list": "Список игроков",
+  "modal_placeholder.prompt": "Напишите ники тех кого хотите позвать собой, через пробел",
+
+  "embed.floor_1": {
+    "title": "Первый этаж",
+    "description": "этаж"
+  },
+  "embed.floor_2": {
+    "title": "Второй этаж",
+    "description": "этаж"
+  },
+  "embed.floor_3": {
+    "title": "Третий этаж",
+    "description": "этаж"
+  }
+}

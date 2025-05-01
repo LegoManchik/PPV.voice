@@ -1,0 +1,202 @@
+{
+  "floor": {
+    "1": {
+      "R01": {
+        "description": {
+          "en": "A place with a good view. It can accommodate 3 people.",
+          "ru": "Место с хорошим видом. Вмещает 3 человека."
+        },
+        "color": "de3314",
+        "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508565778534471/R01.png?ex=6811dc86&is=68108b06&hm=bdb923bfe696a3eb119076bfdd3f2311a3bfa278325f45b2bc08ae2f8b5c4191&"
+      },
+      "R02": {
+        "description": {
+          "en": "A place with an average view. It can accommodate 3 people.",
+          "ru": "Место со средним видом. Вмещает 3 человека."
+        },
+        "color": "de3314",
+        "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508579565076520/R02.png?ex=6811dc89&is=68108b09&hm=00fd620ef296319087807eb0427e138b052c833446202ed25ddc5128a449980e&"
+      },
+      "R03": {
+        "description": {
+          "en": "A place with a good view. It can accommodate 3 people.",
+          "ru": "Место с хорошим видом. Вмещает 3 человека."
+        },
+        "color": "de3314",
+        "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508607100944394/R03.png?ex=6811dc90&is=68108b10&hm=d8c850de1c7ca5e4f7ba77782d5c565e3429dd5341a7622d2b184d8bbd6168ac&"
+      },
+      "R04": {
+        "description": {
+          "en": "A place with an average view. It can accommodate 3 people.",
+          "ru": "Место со средним видом. Вмещает 3 человека."
+        },
+        "color": "de3314",
+        "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508619746775154/R04.png?ex=6811dc93&is=68108b13&hm=7e3b2ddfd91baf5913dc1309992bed81ef334e1b982b1ffd71b91665c1cce435&"
+      },
+      "R05": {
+        "description": {
+          "en": "A place with an average view. It can accommodate 3 people.",
+          "ru": "Место со средним видом. Вмещает 3 человека."
+        },
+        "color": "de3314",
+        "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508631813521458/R05.png?ex=6811dc96&is=68108b16&hm=b3f50ead20f7d54e219fe6bd981d62bc7306cd95da5861aca8046994054edec0&"
+      },
+      "R06": {
+        "description": {
+          "en": "A place with a good view. It can accommodate 3 people.",
+          "ru": "Место с хорошим видом. Вмещает 3 человека."
+        },
+        "color": "de3314",
+        "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508643951968357/R06.png?ex=6811dc99&is=68108b19&hm=696f27f6b8c07a5e6c695bedf6d44a31e2241e0eb45677b867c55cb050c9b75c&"
+      },
+      "R07": {
+        "description": {
+          "en": "A place with an average view. It can accommodate 3 people.",
+          "ru": "Место со средним видом. Вмещает 3 человека."
+        },
+        "color": "de3314",
+        "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508656107192350/R07.png?ex=6811dc9c&is=68108b1c&hm=7f37fa154c0b15d770346254931c22a9abf8b75b74d6efe91fdc664383f36303&"
+      },
+      "G01": {
+        "description": {
+          "en": "A place with a **perfect** view. It can accommodate 3 people. Includes a photo with the crew and Lady Gaga after the show.",
+          "ru": "Место с **идеальным** видом. Вмещает 3 человека. Включает в себя фотографию с командой и Леди Гагой после шоу."
+        },
+        "color": "109628",
+        "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508754551443579/G01.png?ex=6811dcb3&is=68108b33&hm=9041715ce2c6144a89fb5ff732a1cb3f1665342130cd580148e4e148cb733429&"
+      },
+      "G02": {
+        "description": {
+          "en": "A place with a **perfect** view. It can accommodate 3 people. Includes a photo with the crew and Lady Gaga after the show.",
+          "ru": "Место с **идеальным** видом. Вмещает 3 человека. Включает в себя фотографию с командой и Леди Гагой после шоу."
+        },
+        "color": "109628",
+        "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508766417125386/G02.png?ex=6811dcb6&is=68108b36&hm=b75bc8805fcb092bef70d8ecba6bfce5da401206d265d043999215081874a84d&"
+      },
+      "G03": {
+        "description": {
+          "en": "A place with a **perfect** view. It can accommodate 3 people. Includes a photo with the crew and Lady Gaga after the show.",
+          "ru": "Место с **идеальным** видом. Вмещает 3 человека. Включает в себя фотографию с командой и Леди Гагой после шоу."
+        },
+        "color": "109628",
+        "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508791834738788/G03.png?ex=6811dcbc&is=68108b3c&hm=4de70f26ab77bab55d38061a0a4f7776c5678d60ce7bef74b20b78ef7eff83d5&"
+      }
+    },
+    "2": {
+        "P01": {
+          "description": {
+            "en": "A place with an average view. It can accommodate 3 people.",
+            "ru": "Место со средним видом. Вмещает 3 человека."
+          },
+          "color": "ff07fb",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508948659634389/P01.png?ex=6811dce1&is=68108b61&hm=9c6dcfb9bb3eb0e87e7a89bd06d8183a6ea9b30af40a84c9bf0a9f6c3065abe1&"
+        },
+        "P02": {
+          "description": {
+            "en": "A place with an average view. It can accommodate 3 people.",
+            "ru": "Место со средним видом. Вмещает 3 человека."
+          },
+          "color": "ff07fb",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508962077479023/P02.png?ex=6811dce5&is=68108b65&hm=f6a573cecc0476488fb7d83336de95ee4e955a79df561270239d09e5931b9757&"
+        },
+        "P03": {
+          "description": {
+            "en": "A place with a good view. It can accommodate 3 people.",
+            "ru": "Место с хорошим видом. Вмещает 3 человека."
+          },
+          "color": "ff07fb",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508975243133079/P03.png?ex=6811dce8&is=68108b68&hm=4d49c536a7cdc6bebe0c0aa714680d05857cdd31356fba71c7434b149f479d8d&"
+        },
+        "P04": {
+          "description": {
+            "en": "A place with a good view. It can accommodate 3 people.",
+            "ru": "Место с хорошим видом. Вмещает 3 человека."
+          },
+          "color": "ff07fb",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366508992129667072/P04.png?ex=6811dcec&is=68108b6c&hm=fde634dc0288226255a16958503ca78f764d4c62d6592eae89467a9654c75515&"
+        },
+        "P05": {
+          "description": {
+            "en": "A place with a good view. It can accommodate 3 people.",
+            "ru": "Место с хорошим видом. Вмещает 3 человека."
+          },
+          "color": "ff07fb",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366509001801465956/P05.png?ex=6811dcee&is=68108b6e&hm=02f3e11de9667a24bc3fd2a9131a8b445a872f2f24ab2f34ea2729695be75332&"
+        },
+        "P06": {
+          "description": {
+            "en": "A place with a good view. It can accommodate 3 people.",
+            "ru": "Место с хорошим видом. Вмещает 3 человека."
+          },
+          "color": "ff07fb",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366509019857948805/P06.png?ex=6811dcf2&is=68108b72&hm=7b3cc406cb35876c4479d8a4cf3946f4636c8ea8ca6b52e963eed35e0841923a&"
+        },
+        "P07": {
+          "description": {
+            "en": "A place with a **perfect** view. It can accommodate 3 people.",
+            "ru": "Место с **идеальным** видом. Вмещает 3 человека."
+          },
+          "color": "ff07fb",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366509034990993541/P07.png?ex=6811dcf6&is=68108b76&hm=a1262658be06cf4feb237f7759eb1113449dda196fcbc435b73cc5398c8e7725&"
+        },
+        "P08": {
+          "description": {
+            "en": "A place with a **perfect** view. It can accommodate 3 people.",
+            "ru": "Место с **идеальным** видом. Вмещает 3 человека."
+          },
+          "color": "ff07fb",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366509052208742400/P08.png?ex=6811dcfa&is=68108b7a&hm=ac2ca7d7ebe0919f7139e658a0a8d409f0f4fde4b2ed74582490b160bd75133e&"
+        },
+        "P09": {
+          "description": {
+            "en": "A place with a good view. It can accommodate 3 people.",
+            "ru": "Место с хорошим видом. Вмещает 3 человека."
+          },
+          "color": "ff07fb",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366509072693592104/P09.png?ex=6811dcff&is=68108b7f&hm=a434e9e425e13b571e903aa214c2877077e69deb32092c33a076391c541a95f9&"
+        },
+        "P10": {
+          "description": {
+            "en": "A place with a good view. It can accommodate 3 people.",
+            "ru": "Место с хорошим видом. Вмещает 3 человека."
+          },
+          "color": "ff07fb",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366509089911476294/P10.png?ex=6811dd03&is=68108b83&hm=7bee04b645dddbd5361c4943f252c32412b1dccace59cca2255dfea41a9a94af&"
+        }
+      },
+    "3": {
+        "Y01": {
+          "description": {
+            "en": "A place with a **bad** view. It can accommodate 3 people.",
+            "ru": "Место с **плохим** видом. Вмещает 3 человека."
+          },
+          "color": "f7ff07",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366509186069827604/Y01.png?ex=6811dd1a&is=68108b9a&hm=c5056fc842144cbf62308f94fe1bf5a200997c84da7cb1f95a144ac4e6845bd9&"
+        },
+        "Y02": {
+          "description": {
+            "en": "A place with a **bad** view. It can accommodate 3 people.",
+            "ru": "Место с **плохим** видом. Вмещает 3 человека."
+          },
+          "color": "f7ff07",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366509198065537055/Y02.png?ex=6811dd1d&is=68108b9d&hm=23a831f43ef35a4ec8a79b569a105eb73a191a547252803b75b8f99b1d38daca&"
+        },
+        "Y03": {
+          "description": {
+            "en": "A place with a **bad** view. It can accommodate 3 people.",
+            "ru": "Место с **плохим** видом. Вмещает 3 человека."
+          },
+          "color": "f7ff07",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366509209151340686/Y03.png?ex=6811dd1f&is=68108b9f&hm=c637aeae522749c333c60dc99fea684f3ff0d92dfe63c10df22cf4417c1a885d&"
+        },
+        "Y04": {
+          "description": {
+            "en": "A place with an average view. It can accommodate 3 people.",
+            "ru": "Место со средним видом. Вмещает 3 человека."
+          },
+          "color": "f7ff07",
+          "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366509221432266974/Y04.png?ex=6811dd22&is=68108ba2&hm=16699972a279e083934f45d5cfb13ce1784e28582974062aab0573c52ef7fc68&"
+        }
+      }
+  }
+}

@@ -1,0 +1,57 @@
+import sqlite3
+
+from utils.seat_data import SeatData
+
+DATA_BASE = "database/tickets.db"
+
+
+class NotEmptySeatError(Exception):
+    @classmethod
+    def __str__(cls):
+        return "Failed to finish off the object because its place is already taken"
+
+
+class TicketBookingDatabase:
+    def __init__(self):
+        self.con = sqlite3.connect(DATA_BASE)
+        self.cur = self.con.cursor()
+
+    def __create_tables__(self):
+        for i in range(1, 4):
+            self.cur.execute(f'''
+            CREATE TABLE IF NOT EXISTS floor_{i} (
+                seat INTEGER,
+                user_id INTEGER
+            )
+            ''')
+        self.con.commit()
+
+    def generate_seats(self):
+        for i in range(1, 4):
+            self.cur.execute(
+                f'''SELECT seat, user_id FROM floor_{i};'''
+            )
+            if self.cur.fetchone() is None:
+                data = SeatData(floor=i)
+                for j in data.get_seats():
+                    self.cur.execute(
+                        f'''INSERT INTO floor_{i} (seat, user_id) VALUES (?, ?)''', (j, None)
+                    )
+        self.con.commit()
+
+    def get_seat_list(self, floor: int):
+        self.cur.execute(f'''
+            SELECT seat, user_id
+            FROM floor_{floor}
+        ''')
+        return self.cur.fetchall()
+
+    def add_user(self, floor: int, seat: str, user_id: int):
+        self.cur.execute(f'SELECT user_id FROM floor_{floor} WHERE seat = ?', (seat,))
+        print("это было")
+        if self.cur.fetchall() is None:
+            self.cur.execute(f'UPDATE floor_{floor} SET user_id = ? WHERE seat = ?', (user_id, seat))
+            self.con.commit()
+        else:
+            raise NotEmptySeatError()
+

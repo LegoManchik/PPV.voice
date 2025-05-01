@@ -1,0 +1,19 @@
+{
+  "button.buy_ticket": "Buy Ticket",
+  "modal_title.player_list": "Add companions",
+  "modal_label.player_list": "Player List",
+  "modal_placeholder.prompt": "Write the nicknames of those you want to invite, separated by a space",
+
+  "embed.floor_1": {
+    "title": "Ground Floor",
+    "description": "floor"
+  },
+  "embed.floor_2": {
+    "title": "2nd Floor",
+    "description": "floor"
+  },
+  "embed.floor_3": {
+    "title": "3rd Floor",
+    "description": "floor"
+  }
+}
