@@ -15,5 +15,9 @@
   "embed.floor_3": {
     "title": "3rd Floor",
     "description": "floor"
+  },
+  "embed.seat_reserved": {
+    "title": "Your seat is reserved!",
+    "description": "You will be able to get information on IP and Version closer to the event."
   }
 }

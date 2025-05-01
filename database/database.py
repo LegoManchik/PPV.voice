@@ -48,8 +48,8 @@ class TicketBookingDatabase:
 
     def add_user(self, floor: int, seat: str, user_id: int):
         self.cur.execute(f'SELECT user_id FROM floor_{floor} WHERE seat = ?', (seat,))
-        print("это было")
-        if self.cur.fetchall() is None:
+
+        if self.cur.fetchall()[0][0] is None:
             self.cur.execute(f'UPDATE floor_{floor} SET user_id = ? WHERE seat = ?', (user_id, seat))
             self.con.commit()
         else:

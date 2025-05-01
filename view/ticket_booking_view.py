@@ -27,6 +27,8 @@ IMAGE_EMBED.set_image(url="https://cdn.discordapp.com/attachments/13659774781573
 
 RENTAL_REQUEST_EMBED = discord.Embed(title="Новая заявка", description="{0} подал заяву на покупку билета")
 
+SEAT_RESERVED_EMBED = discord.Embed(color=discord.Color.green())
+
 
 class BookingTicketButton(discord.ui.View):
     def __init__(self, ctx: commands.Context, lang: str):
@@ -93,7 +95,7 @@ class ChoiceSeatButtons(discord.ui.View):
         self.lang = lang
 
         for seat, user_id in self.db.get_seat_list(floor):
-            button = discord.ui.Button(label=str(seat), style=discord.ButtonStyle.gray, custom_id=seat) #, disabled=user_id is not None)
+            button = discord.ui.Button(label=str(seat), style=discord.ButtonStyle.gray, custom_id=seat, disabled=user_id is not None)
             button.callback = self.button_callback
             self.add_item(button)
 
@@ -157,10 +159,10 @@ class RentalRequestButtons(discord.ui.View):
         self.db = TicketBookingDatabase()
         self.ticket_data = ticket_data
 
-        self.channel = ticket_data.get('channel')
+        self.channel: discord.TextChannel = ticket_data.get('channel')
         self.floor = ticket_data.get('floor')
         self.seat = ticket_data.get('seat')
-        self.user = ticket_data.get('user')
+        self.user: discord.User = ticket_data.get('user')
         self.players = ticket_data.get('players')
 
         self.lang = lang
@@ -188,8 +190,9 @@ class RentalRequestButtons(discord.ui.View):
 
             self.db.add_user(self.floor, self.seat, self.user.id)
 
-            await member.add_roles(get(interaction.guild.roles, id={"ru": config.RU_ROLE_ID, "en": config.EN_ROLE_ID}.get(str(interaction.message.embeds[0].footer.text))))
+            await member.add_roles(get(interaction.guild.roles, id={"ru": config.RU_ROLE_ID, "en": config.EN_ROLE_ID}.get(str(interaction.message.embeds[0].footer.text.split('-')[1]))))
 
+            await self.channel.send(self.user.mention, embed=Localization.translatable_embed(SEAT_RESERVED_EMBED, key="embed.seat_reserved", lang=self.lang))
             await self.channel.set_permissions(member, read_messages=True, send_messages=False)
 
 # endregion

@@ -45,7 +45,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, inter: discord.Interaction, source: discord.FFmpegPCMAudio, *, data: dict, volume: float = 0.5):
         super().__init__(source, volume)
 
-        self.requester = inter.author
+        self.requester = inter.user
         self.channel = inter.channel
         self.data = data
 
