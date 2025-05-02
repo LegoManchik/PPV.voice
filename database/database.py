@@ -20,8 +20,9 @@ class TicketBookingDatabase:
         for i in range(1, 4):
             self.cur.execute(f'''
             CREATE TABLE IF NOT EXISTS floor_{i} (
-                seat INTEGER,
-                user_id INTEGER
+                seat TEXT,
+                user_id INTEGER,
+                players TEXT
             )
             ''')
         self.con.commit()
@@ -46,12 +47,17 @@ class TicketBookingDatabase:
         ''')
         return self.cur.fetchall()
 
-    def add_user(self, floor: int, seat: str, user_id: int):
+    def add_user(self, floor: int, seat: str, user_id: int, players: str):
         self.cur.execute(f'SELECT user_id FROM floor_{floor} WHERE seat = ?', (seat,))
 
         if self.cur.fetchall()[0][0] is None:
             self.cur.execute(f'UPDATE floor_{floor} SET user_id = ? WHERE seat = ?', (user_id, seat))
+            self.cur.execute(f'UPDATE floor_{floor} SET players = ? WHERE seat = ?', (players, seat))
             self.con.commit()
         else:
             raise NotEmptySeatError()
 
+    def remove_user(self, floor: int, seat: str, players: str):
+        self.cur.execute(f'UPDATE floor_{floor} SET user_id = ? WHERE seat = ?', (None, seat))
+        self.cur.execute(f'UPDATE floor_{floor} SET players = ? WHERE seat = ?', (None, seat))
+        self.con.commit()

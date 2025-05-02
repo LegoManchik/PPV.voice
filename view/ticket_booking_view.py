@@ -9,7 +9,7 @@ from discord.ext import commands
 
 import config
 
-from database.database import TicketBookingDatabase, NotEmptySeatError
+from database.database import TicketBookingDatabase
 from utils.seat_data import SeatData
 from utils.localization import Localization
 
@@ -28,6 +28,7 @@ IMAGE_EMBED.set_image(url="https://cdn.discordapp.com/attachments/13659774781573
 RENTAL_REQUEST_EMBED = discord.Embed(title="Новая заявка", description="{0} подал заяву на покупку билета")
 
 SEAT_RESERVED_EMBED = discord.Embed(color=discord.Color.green())
+APPLICATION_REJECTED_EMBED = discord.Embed(color=discord.Color.red())
 
 
 class BookingTicketButton(discord.ui.View):
@@ -144,7 +145,6 @@ class SeatButtons(discord.ui.View):
         await interaction.response.edit_message(embed=Localization.translatable_embed(embed, f"embed.floor_{self.floor}", self.lang),  view=ChoiceSeatButtons(self.ctx, floor=self.floor, lang=self.lang))
 
     async def rental_seat_callback(self, interaction: discord.Interaction):
-
         await interaction.response.send_modal(AddPlayersModal(ctx=self.ctx, floor=self.floor, seat=self.seat, lang=self.lang, message=interaction.message))
 # endregion
 
@@ -153,19 +153,20 @@ class SeatButtons(discord.ui.View):
 class RentalRequestButtons(discord.ui.View):
     def __init__(self, ctx: commands.Context, lang: str, ticket_data: dict, disabled: bool = False):
         super().__init__(timeout=None)
+
         self.value: Optional[bool] = None
         self.ctx = ctx
 
         self.db = TicketBookingDatabase()
-        self.ticket_data = ticket_data
+        self.ticket_data: dict = ticket_data
 
         self.channel: discord.TextChannel = ticket_data.get('channel')
-        self.floor = ticket_data.get('floor')
-        self.seat = ticket_data.get('seat')
+        self.floor: str = ticket_data.get('floor')
+        self.seat: str = ticket_data.get('seat')
         self.user: discord.User = ticket_data.get('user')
-        self.players = ticket_data.get('players')
+        self.players: str = ticket_data.get('players')
 
-        self.lang = lang
+        self.lang: str = lang
 
         reject_button = discord.ui.Button(label="Отклонить", style=discord.ButtonStyle.red, custom_id='reject_seat', row=1, disabled=disabled)
         reject_button.callback = self.reject_callback
@@ -178,17 +179,23 @@ class RentalRequestButtons(discord.ui.View):
 
     async def reject_callback(self, interaction: discord.Interaction):
         if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None:
+
             await self.channel.delete(reason="Тикет отклонён")
             await interaction.response.edit_message(view=RentalRequestButtons(ctx=self.ctx, lang=self.lang, disabled=True, ticket_data=self.ticket_data))
 
+            embed = Localization.translatable_embed(APPLICATION_REJECTED_EMBED, "embed.applivation_rejected", self.lang)
+            embed.description = embed.description.format(self.seat)
+            await self.user.send(embed=embed)
+
     async def approve_callback(self, interaction: discord.Interaction):
         if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None:
+
             member = get(interaction.guild.members, name=self.channel.name.split('-')[2])
             await interaction.response.edit_message(
                 view=RentalRequestButtons(ctx=self.ctx, lang=self.lang, disabled=True,
                                           ticket_data=self.ticket_data))
 
-            self.db.add_user(self.floor, self.seat, self.user.id)
+            self.db.add_user(int(self.floor), self.seat, self.user.id, self.players)
 
             await member.add_roles(get(interaction.guild.roles, id={"ru": config.RU_ROLE_ID, "en": config.EN_ROLE_ID}.get(str(interaction.message.embeds[0].footer.text.split('-')[1]))))
 

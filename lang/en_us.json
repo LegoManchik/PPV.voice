@@ -19,5 +19,9 @@
   "embed.seat_reserved": {
     "title": "Your seat is reserved!",
     "description": "You will be able to get information on IP and Version closer to the event."
+  },
+  "embed.applivation_rejected": {
+    "title": "Your application has been rejected",
+    "description": "The request for seat **{0}** was rejected."
   }
 }
