@@ -3,7 +3,7 @@ import json
 
 class SeatData:
     def __init__(self, floor: int, seat: str = None):
-        with open("seats.json", 'r', encoding='utf-8') as json_file:
+        with open("data/seats.json", 'r', encoding='utf-8') as json_file:
             self.data = json.load(json_file)
 
             self.floor = self.data.get('floor').get(str(floor))

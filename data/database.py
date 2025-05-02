@@ -1,8 +1,8 @@
 import sqlite3
 
-from utils.seat_data import SeatData
+from data.seat_data import SeatData
 
-DATA_BASE = "database/tickets.db"
+DATA_BASE = "data/tickets.db"
 
 
 class NotEmptySeatError(Exception):
@@ -57,7 +57,7 @@ class TicketBookingDatabase:
         else:
             raise NotEmptySeatError()
 
-    def remove_user(self, floor: int, seat: str, players: str):
+    def remove_user(self, floor: int, seat: str):
         self.cur.execute(f'UPDATE floor_{floor} SET user_id = ? WHERE seat = ?', (None, seat))
         self.cur.execute(f'UPDATE floor_{floor} SET players = ? WHERE seat = ?', (None, seat))
         self.con.commit()
