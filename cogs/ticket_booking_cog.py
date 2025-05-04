@@ -1,17 +1,12 @@
 import enum
 
 import discord
-from discord import app_commands
 from discord.ext import commands
 
-from view.ticket_booking_view import BookingTicketButton, ConfirmationButton
+
+from view.ticket_booking_view import ConfirmationButton
 from data.database import TicketBookingDatabase
-from utils.localization import LangContext, Localization
-
-
-class Language(enum.Enum):
-    RU = "ru"
-    EN = "en"
+from utils.localization import Localization, Language
 
 
 class Floor(enum.Enum):

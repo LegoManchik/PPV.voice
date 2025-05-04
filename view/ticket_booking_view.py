@@ -10,7 +10,7 @@ import config
 
 from data.database import TicketBookingDatabase
 from data.seat_data import SeatData
-from utils.localization import Localization, LangContext
+from utils.localization import Localization, LangContext, Language
 
 FLOOR_1_EMBED = discord.Embed()
 FLOOR_1_EMBED.set_image(url="https://media.discordapp.net/attachments/1365977478157303839/1366827898085834812/Frame_15620.png")
@@ -37,22 +37,14 @@ class ConfirmationButton(discord.ui.View):
         self.lang = lang
         self.bot = bot
 
-        button = discord.ui.Button(label=Localization.translatable("button.buy_ticket", lang), style=discord.ButtonStyle.red, custom_id=f'buy_ticket_{lang}', row=1)
+        button = discord.ui.Button(label=Localization.translatable("button.book_ticket", lang), style=discord.ButtonStyle.red, custom_id=f'book_ticket_{lang}', row=1)
         button.callback = self.confirm_callback
 
         self.add_item(button)
 
     async def confirm_callback(self, interaction: discord.Interaction):
-        ctx = await self.get_context_from_interaction(self.bot, interaction)
+        ctx = await LangContext.get_context_from_interactionc(bot=self.bot, interaction=interaction)
         await interaction.response.send_message(embed=Localization.translatable_embed(discord.Embed(), key="embed.booking_confirm", lang=self.lang), view=BookingTicketButton(ctx=ctx, lang=self.lang), ephemeral=True)
-
-    async def get_context_from_interaction(self, bot: commands.Bot, interaction: discord.Interaction) -> commands.Context:
-        ctx = await bot.get_context(interaction.message) if interaction.message else await bot.get_context(
-            interaction)
-        ctx.author = interaction.user
-        ctx.channel = interaction.channel
-        ctx.interaction = interaction
-        return ctx
 
 
 class BookingTicketButton(discord.ui.View):
@@ -62,6 +54,7 @@ class BookingTicketButton(discord.ui.View):
         self.value: Optional[bool] = None
         self.ctx: LangContext = LangContext(bot=ctx.bot, message=ctx.message, view=ctx.view)
         self.ctx.set_lang(lang=lang)
+        self.db = TicketBookingDatabase()
 
         button = discord.ui.Button(label=Localization.translatable("button.yes", self.ctx.lang), style=discord.ButtonStyle.green, custom_id=f'buy_ticket_{self.ctx.lang}', row=1)
         button.callback = self.booking_ticket
@@ -70,18 +63,7 @@ class BookingTicketButton(discord.ui.View):
 
     async def booking_ticket(self, interaction: discord.Interaction):
         guild = interaction.message.guild
-        category = get(guild.categories, name="Tickets")
-        random_int = random.randint(100, 999)
-
-        await guild.create_text_channel(f'ticket-{self.ctx.lang}-{interaction.user.name}-{random_int}', category=category)
-
-        everyone = everyone = guild.get_role(config.GUILD_ID)
-
-        channel: TextChannel = get(category.channels, name=f'ticket-{self.ctx.lang}-{interaction.user.name}-{random_int}')
-
-        await channel.set_permissions(interaction.user, read_messages=True, send_messages=False)
-        await channel.set_permissions(get(guild.roles, id=config.SUPERVISOR_ROLE_ID), read_messages=True, send_messages=True)
-        await channel.set_permissions(everyone, read_messages=False, send_messages=False)
+        channel = await self.db.create_ticket(ctx=self.ctx, user=interaction.user, guild=guild)
 
         await channel.send(embed=Localization.translatable_embed(discord.Embed(), key="embed.floors", lang=self.ctx.lang), view=FloorsButtons(ctx=self.ctx))
 
@@ -197,7 +179,7 @@ class RentalRequestButtons(discord.ui.View):
         self.add_item(approve_button)
 
     async def reject_callback(self, interaction: discord.Interaction):
-        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None:
+        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
 
             await self.channel.delete(reason="Тикет отклонён")
             await interaction.response.edit_message(view=RentalRequestButtons(ctx=self.ctx, disabled=True, ticket_data=self.ticket_data))
@@ -207,7 +189,7 @@ class RentalRequestButtons(discord.ui.View):
             await self.user.send(embed=embed)
 
     async def approve_callback(self, interaction: discord.Interaction):
-        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None:
+        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
 
             member = get(interaction.guild.members, name=self.channel.name.split('-')[2])
 
@@ -215,7 +197,7 @@ class RentalRequestButtons(discord.ui.View):
 
             self.db.add_user(int(self.floor), self.seat, self.user.id, ' '.join(self.players))
 
-            await member.add_roles(get(interaction.guild.roles, id={"ru": config.RU_ROLE_ID, "en": config.EN_ROLE_ID}.get(str(interaction.message.embeds[0].author.name.split('-')[1]))))
+            await member.add_roles(get(interaction.guild.roles, id=Language.lang_role_get(self.ctx.lang)))
 
             await self.channel.send(self.user.mention, embed=Localization.translatable_embed(SEAT_RESERVED_EMBED, key="embed.seat_reserved", lang=self.ctx.lang))
             await self.channel.set_permissions(member, read_messages=True, send_messages=False)

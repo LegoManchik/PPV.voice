@@ -1,6 +1,12 @@
 import sqlite3
+from datetime import datetime
 
+import discord
+from discord.ext import commands
+
+import config
 from data.seat_data import SeatData
+from utils.localization import LangContext
 
 DATA_BASE = "data/tickets.db"
 
@@ -42,6 +48,21 @@ class TicketBookingDatabase:
 
         self.con.commit()
 
+    async def get_next_ticket_number(self, guild_id: int) -> int:
+
+        self.cur.execute('''INSERT OR IGNORE INTO ticket_counter (guild_id, last_number)
+                     VALUES (?, 0)''', (guild_id,))
+        self.cur.execute('''UPDATE ticket_counter 
+                     SET last_number = last_number + 1 
+                     WHERE guild_id = ?''', (guild_id,))
+        self.cur.execute('''SELECT last_number FROM ticket_counter 
+                     WHERE guild_id = ?''', (guild_id,))
+
+        number = self.cur.fetchone()[0]
+        self.con.commit()
+
+        return number
+
     def generate_seats(self):
         for i in range(1, 4):
             self.cur.execute(
@@ -76,3 +97,24 @@ class TicketBookingDatabase:
         self.cur.execute(f'UPDATE floor_{floor} SET user_id = ? WHERE seat = ?', (None, seat))
         self.cur.execute(f'UPDATE floor_{floor} SET players = ? WHERE seat = ?', (None, seat))
         self.con.commit()
+
+    async def create_ticket(self, ctx: LangContext, user: discord.Member, guild: discord.Guild) -> discord.TextChannel:
+        ticket_number = await self.get_next_ticket_number(guild.id)
+
+        category = discord.utils.get(guild.categories, name=config.TICKETS_CATEGORY_ID)
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
+
+        channel = await guild.create_text_channel(
+            name=f'ticket-{ctx.lang}-{user.name}-{ticket_number:0>4}',
+            category=category,
+            overwrites=overwrites
+        )
+
+        self.cur.execute('''INSERT INTO tickets 
+                     (user_id, channel_id, ticket_number, created_at) 
+                     VALUES (?, ?, ?, ?)''', (user.id, channel.id, ticket_number, datetime.now().isoformat()))
+        self.con.commit()
+        return channel
