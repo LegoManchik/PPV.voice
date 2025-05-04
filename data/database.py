@@ -25,6 +25,21 @@ class TicketBookingDatabase:
                 players TEXT
             )
             ''')
+
+        # Таблица для хранения тикетов
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS tickets ( 
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    channel_id INTEGER NOT NULL,
+                    ticket_number INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    status TEXT DEFAULT 'open')''')
+
+        # Таблица для счетчика тикетов
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS ticket_counter 
+                     (guild_id INTEGER PRIMARY KEY,
+                      last_number INTEGER DEFAULT 0)''')
+
         self.con.commit()
 
     def generate_seats(self):

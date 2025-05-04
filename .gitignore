@@ -2,5 +2,5 @@ config.py
 audio_files
 logs
 venv
-database/tickets.db
+data/tickets.db
 .idea

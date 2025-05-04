@@ -1,20 +1,37 @@
 {
   "button.buy_ticket": "Buy Ticket",
+  "button.yes": "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀Yes⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
   "modal_title.player_list": "Add companions",
   "modal_label.player_list": "Player List",
   "modal_placeholder.prompt": "Write the nicknames of those you want to invite, separated by a space",
 
+  "embed.ticket_booking": {
+    "title": "",
+    "description": "In this channel you can book tickets for the ENIGMA show.\n\nThe advantages of the armor are the beautiful view and proximity to the artist. The reserved seats will be reflected on the seat map. The server can be accessed from both a licensed and a pirated version of the game.\n\nThis time our hall consists of 3 sitting floors. The hall is divided into 5 zones: Purple Zone, Red Zone, Green Zone, Yellow Zone, Turquoise Zone. You can see the map of places by clicking on the button below. ↓\n\n>>> **Players take the unarmored seats on the server before the show. You have the opportunity to get a good place with the best view. One place is designed for 3 people**.",
+    "image": "https://media.discordapp.net/attachments/1365977478157303839/1367961926121816104/Frame_15653.png?ex=68167d52&is=68152bd2&hm=ffecb5c7bc80c1e33bcc2001a3398f1745b2cf7d53fb66251e6eb4674c91ea0b&=&format=webp&quality=lossless&width=1572&height=884"
+  },
+
+  "embed.booking_confirm": {
+    "description": "**Are you sure you want to reserve a seat?**"
+  },
+
+  "embed.floors": {
+    "title": "Choose the floor you want to sit on",
+    "description": "",
+    "image": "https://media.discordapp.net/attachments/1365977478157303839/1367956465842655356/Frame_15652.png"
+  },
+
   "embed.floor_1": {
     "title": "Ground Floor",
-    "description": "floor"
+    "description": "Choose the seat where you want to sit. The locked seat buttons mean that the seat has already been booked."
   },
   "embed.floor_2": {
     "title": "2nd Floor",
-    "description": "floor"
+    "description": "Choose the seat where you want to sit. The locked seat buttons mean that the seat has already been booked."
   },
   "embed.floor_3": {
     "title": "3rd Floor",
-    "description": "floor"
+    "description": "Choose the seat where you want to sit. The locked seat buttons mean that the seat has already been booked."
   },
   "embed.seat_reserved": {
     "title": "Your seat is reserved!",

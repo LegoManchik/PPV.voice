@@ -1,11 +1,12 @@
 import enum
 
+import discord
 from discord import app_commands
 from discord.ext import commands
 
 from view.ticket_booking_view import BookingTicketButton, ConfirmationButton
 from data.database import TicketBookingDatabase
-from utils.localization import LangContext
+from utils.localization import LangContext, Localization
 
 
 class Language(enum.Enum):
@@ -28,8 +29,8 @@ class TicketBooking(commands.Cog):
     @commands.hybrid_command(name="buy_ticket", description="Создаёт меню бронирования билетов")
     @commands.has_permissions(manage_guild=True)
     async def buy_ticket(self, ctx: commands.Context, lang: Language):
-
-        await ctx.send('Booking Ticket', view=ConfirmationButton(bot=self.bot, lang=lang.value))
+        await ctx.interaction.response.defer()
+        await ctx.channel.send(embed=Localization.translatable_embed(discord.Embed(), "embed.ticket_booking", lang.value), view=ConfirmationButton(bot=self.bot, lang=lang.value))
 
     @commands.hybrid_command(name="cancel_reservation", description="Создаёт меню бронирования билетов", displayed_name="отменить бронирование")
     @commands.has_permissions(manage_guild=True)

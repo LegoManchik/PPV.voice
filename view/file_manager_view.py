@@ -48,7 +48,6 @@ class FolderSelect(Select):
                 if files_list == '':
                     files_list += '```Здесь пусто!```'
 
-
             embed = discord.Embed(title=self.values[0], description=files_list, color=config.COLOR)
             await inter.response.edit_message(embed=embed, view=FolderButtons(folder=self.values[0], message=self.message))        
 

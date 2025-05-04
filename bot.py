@@ -6,8 +6,11 @@ import discord
 from discord.ext import commands
 
 import config
+from utils.localization import LangContext
+
 from utils.logger import BotLogger
-from database.database import TicketBookingDatabase
+from data.database import TicketBookingDatabase
+from view.ticket_booking_view import BookingTicketButton, ConfirmationButton
 
 
 class PersistentViewBot(commands.Bot):
@@ -20,9 +23,15 @@ class PersistentViewBot(commands.Bot):
         if not self.persistent_views_added:
             self.persistent_views_added = True
 
+            self.add_view(view=ConfirmationButton(self, lang='en'))
+            self.add_view(view=ConfirmationButton(self, lang='ru'))
+
         db = TicketBookingDatabase()
 
         db.__create_tables__()
+
+        if len(db.get_seat_list(1)) == 0:
+            db.generate_seats()
 
         logger.info(f'Бот активен как {bot.user} (ID: {bot.user.id})')
 
