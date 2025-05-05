@@ -67,4 +67,11 @@ class Localization:
         if data.get('image') is not None:
             embed.set_image(url=data.get('image'))
 
+        if data.get("author") is not None:
+            embed.set_author(name=data.get("author").get("name"), icon_url=data.get("author").get("icon"))
+
+        if data.get("fields") is not None:
+            for field in data.get("fields"):
+                embed.add_field(name=field["name"], value=field["value"], inline=field['inline'])
+
         return embed

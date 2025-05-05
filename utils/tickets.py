@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import discord
+from discord.utils import get
 
 import config
 from data.database import TicketBookingDatabase
@@ -16,30 +17,25 @@ class TicketSystem:
     async def create_ticket(self, ctx: LangContext, user: discord.Member, guild: discord.Guild) -> discord.TextChannel:
         ticket_number = await self.db.get_next_ticket_number(guild.id)
 
-        category = discord.utils.get(guild.categories, name="Tickets")
-        print(category)
+        role = get(guild.roles, id=config.SUPERVISOR_ROLE_ID)
+
+        category = discord.utils.get(guild.categories, id=config.TICKETS_CATEGORY_ID)
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            user: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            role: discord.PermissionOverwrite(read_messages=True, send_messages=True)
         }
 
         channel = await guild.create_text_channel(
             name=f'ticket-{ctx.lang}-{user.name}-{ticket_number:0>4}',
             category=category,
+            overwrites=overwrites
         )
-
-        everyone = everyone = guild.get_role(config.GUILD_ID)
-
-        await channel.set_permissions(user, read_messages=True, send_messages=False)
-        await channel.set_permissions(discord.utils.get(guild.roles, id=config.SUPERVISOR_ROLE_ID), read_messages=True,
-                                      send_messages=True)
-        await channel.set_permissions(everyone, read_messages=False, send_messages=False)
 
         self.db.cur.execute('''INSERT INTO tickets 
                      (user_id, channel_id, ticket_number, created_at) 
                      VALUES (?, ?, ?, ?)''', (user.id, channel.id, ticket_number, datetime.now().isoformat()))
         self.db.con.commit()
-        self.db.con.close()
         return channel
 
     async def close_ticket(self, channel):

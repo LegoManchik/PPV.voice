@@ -34,11 +34,19 @@
     "description": "Choose the seat where you want to sit. The locked seat buttons mean that the seat has already been booked."
   },
   "embed.seat_reserved": {
-    "title": "Your seat is reserved!",
-    "description": "You will be able to get information on IP and Version closer to the event."
+    "title": "",
+    "description": "You will be able to get information on IP and Version closer to the event.",
+    "author": {
+      "name": "Your seat is reserved!",
+      "icon": "https://media.discordapp.net/attachments/1365977478157303839/1369010912329076757/77a3c6558ab4618f6d27f99538db1c.png"
+    }
   },
   "embed.applivation_rejected": {
-    "title": "Your application has been rejected",
-    "description": "The request for seat **{0}** was rejected."
+    "title": "",
+    "description": "The request for seat **{0}** was rejected.",
+    "author": {
+      "name": "Your application has been rejected!",
+      "icon": "https://media.discordapp.net/attachments/1365977478157303839/1369011028821803018/10f6db19554cdf97c72dd869ab7929.png"
+    }
   }
 }

@@ -11,6 +11,7 @@ import config
 from data.database import TicketBookingDatabase
 from data.seat_data import SeatData
 from utils.localization import Localization, LangContext, Language
+from utils.tickets import TicketSystem
 
 FLOOR_1_EMBED = discord.Embed()
 FLOOR_1_EMBED.set_image(url="https://media.discordapp.net/attachments/1365977478157303839/1366827898085834812/Frame_15620.png")
@@ -54,7 +55,7 @@ class BookingTicketButton(discord.ui.View):
         self.value: Optional[bool] = None
         self.ctx: LangContext = LangContext(bot=ctx.bot, message=ctx.message, view=ctx.view)
         self.ctx.set_lang(lang=lang)
-        self.db = TicketBookingDatabase()
+        self.ticket = TicketSystem(self.ctx.bot)
 
         button = discord.ui.Button(label=Localization.translatable("button.yes", self.ctx.lang), style=discord.ButtonStyle.green, custom_id=f'buy_ticket_{self.ctx.lang}', row=1)
         button.callback = self.booking_ticket
@@ -62,9 +63,7 @@ class BookingTicketButton(discord.ui.View):
         self.add_item(button)
 
     async def booking_ticket(self, interaction: discord.Interaction):
-        guild = interaction.message.guild
-        channel = await self.db.create_ticket(ctx=self.ctx, user=interaction.user, guild=guild)
-
+        channel = await self.ticket.create_ticket(ctx=self.ctx, user=interaction.user, guild=interaction.message.guild)
         await channel.send(embed=Localization.translatable_embed(discord.Embed(), key="embed.floors", lang=self.ctx.lang), view=FloorsButtons(ctx=self.ctx))
 
 
@@ -99,7 +98,7 @@ class ChoiceSeatButtons(discord.ui.View):
         self.ctx = ctx
         self.floor = floor
 
-        for seat, user_id in self.db.get_seat_list(floor):
+        for seat, user_id, players in self.db.get_seat_list(floor):
             button = discord.ui.Button(label=str(seat), style=discord.ButtonStyle.gray, custom_id=seat, disabled=user_id is not None)
             button.callback = self.button_callback
             self.add_item(button)
@@ -137,7 +136,7 @@ class SeatButtons(discord.ui.View):
         back_button = discord.ui.Button(emoji="⬅", style=discord.ButtonStyle.gray, custom_id='seat_back', row=1, disabled=disabled)
         back_button.callback = self.back_callback
 
-        rental_seat_button = discord.ui.Button(label=Localization.translatable("button.buy_ticket", self.ctx.lang), style=discord.ButtonStyle.green, custom_id=f'{seat}_rental', row=1, disabled=disabled)
+        rental_seat_button = discord.ui.Button(label=Localization.translatable("button.book_ticket", self.ctx.lang), style=discord.ButtonStyle.green, custom_id=f'{seat}_rental', row=1, disabled=disabled)
         rental_seat_button.callback = self.rental_seat_callback
 
         self.add_item(back_button)
@@ -161,6 +160,7 @@ class RentalRequestButtons(discord.ui.View):
         self.ctx = ctx
 
         self.db = TicketBookingDatabase()
+        self.ticket = TicketSystem(bot=ctx.bot)
         self.ticket_data: dict = ticket_data
 
         self.channel: discord.TextChannel = ticket_data.get('channel')
@@ -180,9 +180,12 @@ class RentalRequestButtons(discord.ui.View):
 
     async def reject_callback(self, interaction: discord.Interaction):
         if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
-
+            await self.ticket.close_ticket(self.channel)
             await self.channel.delete(reason="Тикет отклонён")
-            await interaction.response.edit_message(view=RentalRequestButtons(ctx=self.ctx, disabled=True, ticket_data=self.ticket_data))
+            interaction.message.embeds[0].set_footer(text="Статус: 💀")
+            embed = interaction.message.embeds[0]
+
+            await interaction.response.edit_message(embed=embed, view=RentalRequestButtons(ctx=self.ctx, disabled=True, ticket_data=self.ticket_data))
 
             embed = Localization.translatable_embed(APPLICATION_REJECTED_EMBED, "embed.applivation_rejected", self.ctx.lang)
             embed.description = embed.description.format(self.seat)
@@ -192,8 +195,9 @@ class RentalRequestButtons(discord.ui.View):
         if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
 
             member = get(interaction.guild.members, name=self.channel.name.split('-')[2])
-
-            await interaction.response.edit_message(view=RentalRequestButtons(ctx=self.ctx, disabled=True, ticket_data=self.ticket_data))
+            interaction.message.embeds[0].set_footer(text="Статус: ✅")
+            embed = interaction.message.embeds[0]
+            await interaction.response.edit_message(embed=embed, view=RentalRequestButtons(ctx=self.ctx, disabled=True, ticket_data=self.ticket_data))
 
             self.db.add_user(int(self.floor), self.seat, self.user.id, ' '.join(self.players))
 
@@ -201,6 +205,7 @@ class RentalRequestButtons(discord.ui.View):
 
             await self.channel.send(self.user.mention, embed=Localization.translatable_embed(SEAT_RESERVED_EMBED, key="embed.seat_reserved", lang=self.ctx.lang))
             await self.channel.set_permissions(member, read_messages=True, send_messages=False)
+            await self.ticket.close_ticket(self.channel)
 
 # endregion
 
@@ -229,9 +234,10 @@ class AddPlayersModal(discord.ui.Modal):
         guild = interaction.guild
         channel = get(guild.channels, id=config.CONFIRMATION_CHANNEL_ID)
 
-        embed = discord.Embed(title="Новая заявка", description=f"{interaction.user.mention} подал заяву на бронирования места **{self.seat}**")
+        embed = discord.Embed(title="Заявка", description=f"{interaction.user.mention} подал заяву на бронирования места **{self.seat}**")
         embed.set_author(name=interaction.channel.name, url=interaction.channel.jump_url, icon_url=interaction.user.avatar.url)
         embed.add_field(name="Приглашенные игроки:", value=f"```{self.players.value}```", inline=False)
+        embed.set_footer(text="Статус: ❌")
 
         await self.message.edit(view=SeatButtons(ctx=self.ctx, floor=self.floor, seat=self.seat, disabled=True))
         await interaction.response.defer()
