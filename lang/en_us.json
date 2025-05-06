@@ -1,6 +1,7 @@
 {
   "button.book_ticket": "Book Ticket",
   "button.yes": "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀Yes⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "button.close_ticket": "Close Ticket",
   "modal_title.player_list": "Add companions",
   "modal_label.player_list": "Player List",
   "modal_placeholder.prompt": "Write the nicknames of those you want to invite, separated by a space",
@@ -33,6 +34,12 @@
     "title": "3rd Floor",
     "description": "Choose the seat where you want to sit. The locked seat buttons mean that the seat has already been booked."
   },
+
+  "embed.moderators_notification": {
+    "title": "Your booking request has been sent!",
+    "description": "Moderation will contact you soon."
+  },
+
   "embed.seat_reserved": {
     "title": "",
     "description": "You will be able to get information on IP and Version closer to the event.",

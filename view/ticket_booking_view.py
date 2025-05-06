@@ -45,7 +45,7 @@ class ConfirmationButton(discord.ui.View):
 
     async def confirm_callback(self, interaction: discord.Interaction):
         ctx = await LangContext.get_context_from_interactionc(bot=self.bot, interaction=interaction)
-        await interaction.response.send_message(embed=Localization.translatable_embed(discord.Embed(), key="embed.booking_confirm", lang=self.lang), view=BookingTicketButton(ctx=ctx, lang=self.lang), ephemeral=True)
+        await interaction.response.send_message(embed=Localization.translatable_embed(discord.Embed(), key="embed.booking_confirm", lang=self.lang), view=BookingTicketButton(ctx=ctx, lang=self.lang), ephemeral=True, delete_after=5)
 
 
 class BookingTicketButton(discord.ui.View):
@@ -65,6 +65,7 @@ class BookingTicketButton(discord.ui.View):
     async def booking_ticket(self, interaction: discord.Interaction):
         channel = await self.ticket.create_ticket(ctx=self.ctx, user=interaction.user, guild=interaction.message.guild)
         await channel.send(embed=Localization.translatable_embed(discord.Embed(), key="embed.floors", lang=self.ctx.lang), view=FloorsButtons(ctx=self.ctx))
+        await interaction.response.defer()
 
 
 #region Выбор этажа
@@ -75,17 +76,40 @@ class FloorsButtons(discord.ui.View):
         self.value: Optional[bool] = None
         self.ctx = ctx
 
-    @discord.ui.button(emoji="1️⃣", label="⠀⠀⠀⠀⠀⠀⠀⠀⠀", style=discord.ButtonStyle.gray, custom_id='floor_1', row=1)
-    async def floor_1_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.ticket = TicketSystem(self.ctx.bot)
+
+        floor_1 = discord.ui.Button(emoji="1️⃣", label="⠀⠀⠀⠀⠀⠀⠀⠀⠀", style=discord.ButtonStyle.gray, custom_id='floor_1', row=1)
+        floor_2 = discord.ui.Button(emoji="2️⃣", label="⠀⠀⠀⠀⠀⠀⠀⠀⠀", style=discord.ButtonStyle.gray, custom_id='floor_2', row=1)
+        floor_3 = discord.ui.Button(emoji="3️⃣", label="⠀⠀⠀⠀⠀⠀⠀⠀⠀", style=discord.ButtonStyle.gray, custom_id='floor_3', row=1)
+
+        close_ticket = discord.ui.Button(label=f"{Localization.translatable('button.close_ticket', lang=self.ctx.lang):⠀^47}",
+                                         style=discord.ButtonStyle.gray, custom_id='close_ticket', row=2)
+
+        floor_1.callback = self.floor_1_callback
+        floor_2.callback = self.floor_2_callback
+        floor_3.callback = self.floor_3_callback
+
+        close_ticket.callback = self.close_ticket_callback
+
+        self.add_item(floor_1)
+        self.add_item(floor_2)
+        self.add_item(floor_3)
+        self.add_item(close_ticket)
+
+    async def floor_1_callback(self, interaction: discord.Interaction):
         await interaction.response.edit_message(embed=Localization.translatable_embed(FLOOR_1_EMBED, f"embed.floor_1", self.ctx.lang), view=ChoiceSeatButtons(self.ctx, 1))
 
-    @discord.ui.button(emoji="2️⃣", label="⠀⠀⠀⠀⠀⠀⠀⠀⠀", style=discord.ButtonStyle.gray, custom_id='floor_2', row=1)
-    async def floor_2_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def floor_2_callback(self, interaction: discord.Interaction):
         await interaction.response.edit_message(embed=Localization.translatable_embed(FLOOR_2_EMBED, f"embed.floor_2", self.ctx.lang), view=ChoiceSeatButtons(self.ctx, 2))
 
-    @discord.ui.button(emoji="3️⃣", label="⠀⠀⠀⠀⠀⠀⠀⠀⠀", style=discord.ButtonStyle.gray, custom_id='floor_3', row=1)
-    async def floor_3_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def floor_3_callback(self, interaction: discord.Interaction):
         await interaction.response.edit_message(embed=Localization.translatable_embed(FLOOR_3_EMBED, f"embed.floor_3", self.ctx.lang), view=ChoiceSeatButtons(self.ctx, 3))
+
+    async def close_ticket_callback(self, interaction: discord.Interaction):
+        channel = interaction.channel
+        await self.ticket.close_ticket(channel=channel)
+        await channel.delete()
+
 # endregion
 
 
@@ -240,7 +264,7 @@ class AddPlayersModal(discord.ui.Modal):
         embed.set_footer(text="Статус: ❌")
 
         await self.message.edit(view=SeatButtons(ctx=self.ctx, floor=self.floor, seat=self.seat, disabled=True))
-        await interaction.response.defer()
+        await interaction.response.send_message(embed=Localization.translatable_embed(discord.Embed(), "embed.moderators_notification", lang=self.ctx.lang))
 
         ticket_data = {'channel': interaction.channel, 'floor': self.floor, 'seat': self.seat, 'user': interaction.user, 'players': self.players.value.split(' ')}
 
