@@ -5,6 +5,7 @@ from discord.utils import get
 
 import config
 from data.database import TicketBookingDatabase
+from data.extract_ticket_number import ExtractTicketNumber
 from utils.localization import LangContext
 
 
@@ -15,7 +16,8 @@ class TicketSystem:
         self.db = TicketBookingDatabase()
 
     async def create_ticket(self, ctx: LangContext, user: discord.Member, guild: discord.Guild) -> discord.TextChannel:
-        ticket_number = await self.db.get_next_ticket_number(guild.id)
+        ticket_number = ExtractTicketNumber.get_random_number()
+        ExtractTicketNumber.add_number(ticket_number)
 
         role = get(guild.roles, id=config.SUPERVISOR_ROLE_ID)
 
@@ -27,7 +29,7 @@ class TicketSystem:
         }
 
         channel = await guild.create_text_channel(
-            name=f'ticket-{ctx.lang}-{user.name}-{ticket_number:0>4}',
+            name=f'ticket-{ctx.lang}-{user.name}-{ticket_number:0>5}',
             category=category,
             overwrites=overwrites
         )
@@ -35,6 +37,7 @@ class TicketSystem:
         self.db.cur.execute('''INSERT INTO tickets 
                      (user_id, channel_id, ticket_number, created_at) 
                      VALUES (?, ?, ?, ?)''', (user.id, channel.id, ticket_number, datetime.now().isoformat()))
+
         self.db.con.commit()
         return channel
 
