@@ -1,12 +1,11 @@
 import asyncio
+import functools
 
 import discord
 import yt_dlp
 
 from urllib.request import urlopen
 from urllib.error import HTTPError
-
-from yt_dlp.compat import functools
 
 yt_dlp.utils.bug_reports_message = lambda: ''
 
@@ -37,6 +36,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     }
 
     FFMPEG_OPTIONS = {
+        'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
         'options': '-vn -filter:a "volume=1.0"',
     }
 
