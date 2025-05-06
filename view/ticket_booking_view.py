@@ -1,14 +1,13 @@
-import random
 from typing import Optional
 
 import discord.ui
-from discord import TextChannel, TextStyle
+from discord import TextStyle
 from discord.ext import commands
 from discord.utils import get
 
 import config
 
-from data.database import TicketBookingDatabase
+from data.database import TicketBookingDatabase, SeatStatus
 from data.seat_data import SeatData
 from utils.localization import Localization, LangContext, Language
 from utils.tickets import TicketSystem
@@ -122,8 +121,8 @@ class ChoiceSeatButtons(discord.ui.View):
         self.ctx = ctx
         self.floor = floor
 
-        for seat, user_id, players in self.db.get_seat_list(floor):
-            button = discord.ui.Button(label=str(seat), style=discord.ButtonStyle.gray, custom_id=seat, disabled=user_id is not None)
+        for seat, user_id, players, status in self.db.get_seat_list(floor):
+            button = discord.ui.Button(label=str(seat), style=discord.ButtonStyle.gray, custom_id=seat, disabled=not self.db.is_avalible(floor, seat))
             button.callback = self.button_callback
             self.add_item(button)
 
@@ -206,6 +205,9 @@ class RentalRequestButtons(discord.ui.View):
         if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
             await self.ticket.close_ticket(self.channel)
             await self.channel.delete(reason="Тикет отклонён")
+
+            self.db.set_seat_status(int(self.floor), self.seat, SeatStatus.AVAILABLE)
+
             interaction.message.embeds[0].set_footer(text="Статус: 💀")
             embed = interaction.message.embeds[0]
 
@@ -249,6 +251,8 @@ class AddPlayersModal(discord.ui.Modal):
         self.players.label = Localization.translatable(self.players.label, ctx.lang)
         self.players.placeholder = Localization.translatable(self.players.placeholder, ctx.lang)
 
+        self.db = TicketBookingDatabase()
+
         self.ctx = ctx
         self.message = message
         self.floor = floor
@@ -257,6 +261,8 @@ class AddPlayersModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         guild = interaction.guild
         channel = get(guild.channels, id=config.CONFIRMATION_CHANNEL_ID)
+
+        self.db.set_seat_status(self.floor, self.seat, SeatStatus.UNAVAILABLE)
 
         embed = discord.Embed(title="Заявка", description=f"{interaction.user.mention} подал заяву на бронирования места **{self.seat}**")
         embed.set_author(name=interaction.channel.name, url=interaction.channel.jump_url, icon_url=interaction.user.avatar.url)
@@ -269,4 +275,4 @@ class AddPlayersModal(discord.ui.Modal):
         ticket_data = {'channel': interaction.channel, 'floor': self.floor, 'seat': self.seat, 'user': interaction.user, 'players': self.players.value.split(' ')}
 
         await interaction.channel.set_permissions(get(interaction.guild.members, name=interaction.channel.name.split('-')[2]), read_messages=True, send_messages=True)
-        await channel.send(content=f"<@&{config.SUPERVISOR_ROLE_ID}>", embed=embed, view=RentalRequestButtons(ctx=self.ctx, ticket_data=ticket_data))
+        await channel.send(content={True: f"<@&{config.SUPERVISOR_ROLE_ID}>", False: "Пинга не буде"}.get(config.PING), embed=embed, view=RentalRequestButtons(ctx=self.ctx, ticket_data=ticket_data))

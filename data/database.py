@@ -1,13 +1,6 @@
+import enum
 import sqlite3
-from datetime import datetime
-
-import discord
-from discord.ext import commands
-from discord.utils import get
-
-import config
 from data.seat_data import SeatData
-from utils.localization import LangContext
 
 DATA_BASE = "data/tickets.db"
 
@@ -16,6 +9,11 @@ class NotEmptySeatError(Exception):
     @classmethod
     def __str__(cls):
         return "Failed to finish off the object because its place is already taken"
+
+
+class SeatStatus(enum.Enum):
+    AVAILABLE = 'available'
+    UNAVAILABLE = 'unavailable'
 
 
 class TicketBookingDatabase:
@@ -29,7 +27,8 @@ class TicketBookingDatabase:
             CREATE TABLE IF NOT EXISTS floor_{i} (
                 seat TEXT,
                 user_id INTEGER,
-                players TEXT
+                players TEXT,
+                status TEXT DEFAULT 'available'
             )
             ''')
 
@@ -42,27 +41,7 @@ class TicketBookingDatabase:
                     created_at TEXT NOT NULL,
                     status TEXT DEFAULT 'open')''')
 
-        # Таблица для счетчика тикетов
-        self.cur.execute('''CREATE TABLE IF NOT EXISTS ticket_counter 
-                     (guild_id INTEGER PRIMARY KEY,
-                      last_number INTEGER DEFAULT 0)''')
-
         self.con.commit()
-
-    async def get_next_ticket_number(self, guild_id: int) -> int:
-
-        self.cur.execute('''INSERT OR IGNORE INTO ticket_counter (guild_id, last_number)
-                     VALUES (?, 0)''', (guild_id,))
-        self.cur.execute('''UPDATE ticket_counter 
-                     SET last_number = last_number + 1 
-                     WHERE guild_id = ?''', (guild_id,))
-        self.cur.execute('''SELECT last_number FROM ticket_counter 
-                     WHERE guild_id = ?''', (guild_id,))
-
-        number = self.cur.fetchone()[0]
-        self.con.commit()
-
-        return number
 
     def generate_seats(self):
         for i in range(1, 4):
@@ -79,7 +58,7 @@ class TicketBookingDatabase:
 
     def get_seat_list(self, floor: int):
         self.cur.execute(f'''
-            SELECT seat, user_id, players
+            SELECT seat, user_id, players, status
             FROM floor_{floor}
         ''')
         return self.cur.fetchall()
@@ -98,3 +77,12 @@ class TicketBookingDatabase:
         self.cur.execute(f'UPDATE floor_{floor} SET user_id = ? WHERE seat = ?', (None, seat))
         self.cur.execute(f'UPDATE floor_{floor} SET players = ? WHERE seat = ?', (None, seat))
         self.con.commit()
+
+    def set_seat_status(self, floor: int, seat: str, status: SeatStatus):
+        self.cur.execute(f'UPDATE floor_{floor} SET status = ? WHERE seat = ?', (status.value, seat))
+        self.con.commit()
+
+    def is_avalible(self, floor: int, seat: str):
+        self.cur.execute(f'SELECT status FROM floor_{floor} WHERE seat = ?', (seat,))
+        self.con.commit()
+        return self.cur.fetchall()[0][0] == SeatStatus.AVAILABLE.value
