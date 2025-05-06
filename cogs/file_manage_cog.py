@@ -16,7 +16,7 @@ class FileManage(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command(name='download')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def download(self, ctx: commands.Context, folder: str, url: str = None, file: discord.Attachment = None):
         
         if not(folder in os.listdir('./audio_files')):
@@ -55,7 +55,7 @@ class FileManage(commands.Cog):
                 os.rename(f"./audio_files/{folder}/{file}", file[:60] + ".{}".format(file.split('.')[1]))
 
     @commands.hybrid_command(name='explorer')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def explorer(self, ctx: commands.Context):
         folders_list = ''
 

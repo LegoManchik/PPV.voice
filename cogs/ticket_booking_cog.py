@@ -3,7 +3,7 @@ import enum
 import discord
 from discord.ext import commands
 
-
+import config
 from view.ticket_booking_view import ConfirmationButton
 from data.database import TicketBookingDatabase
 from utils.localization import Localization, Language
@@ -22,18 +22,18 @@ class TicketBooking(commands.Cog):
         self.db = TicketBookingDatabase()
 
     @commands.hybrid_command(name="buy_ticket", description="Создаёт меню бронирования билетов")
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def buy_ticket(self, ctx: commands.Context, lang: Language):
         await ctx.interaction.response.defer()
         await ctx.channel.send(embed=Localization.translatable_embed(discord.Embed(), "embed.ticket_booking", lang.value), view=ConfirmationButton(bot=self.bot, lang=lang.value))
 
     @commands.hybrid_command(name="cancel_reservation", description="Создаёт меню бронирования билетов", displayed_name="отменить бронирование")
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def cancel_reservation(self, ctx, floor: Floor, seat: str):
         self.db.remove_user(floor=floor.value, seat=seat)
 
     @commands.hybrid_command(name="setup_database")
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def setup_database(self, ctx: commands.Context):
         self.db.generate_seats()
         await ctx.send("Setup")

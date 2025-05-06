@@ -4,6 +4,8 @@ import sqlite3
 import os
 from datetime import datetime
 
+import config
+
 
 class BackupSystem(commands.Cog):
     def __init__(self, bot):
@@ -50,6 +52,7 @@ class BackupSystem(commands.Cog):
             return None
 
     @commands.hybrid_command(name="backup")
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def backup(self, ctx):
         """Создать бэкап вручную"""
         backup_name = await self.create_backup(f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.db")
@@ -59,6 +62,7 @@ class BackupSystem(commands.Cog):
             await ctx.send(embed=discord.Embed(description='❌ Не удалось создать резервную копию'))
 
     @commands.hybrid_command(name="backups_info")
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def backups_info(self, ctx):
         """Показать информацию о бэкапах"""
         backups = sorted(os.listdir(self.BACKUPS_DIR), reverse=True)

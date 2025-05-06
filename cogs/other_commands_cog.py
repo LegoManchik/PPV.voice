@@ -4,6 +4,8 @@ import sys
 import discord
 from discord.ext import commands
 
+import config
+
 RESTART_EMBED = discord.Embed(title='Перезапуск бота', color=0x1abc9c)
 
 
@@ -14,6 +16,7 @@ class Commands(commands.Cog):
 
     @commands.hybrid_command(name='restart')
     @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def restart(self, ctx):
         await ctx.send(embed=RESTART_EMBED)
         python = sys.executable

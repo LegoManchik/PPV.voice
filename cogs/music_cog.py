@@ -49,7 +49,7 @@ class Music(commands.Cog):
         await ctx.send('An error occurred: {}'.format(str(error)))
 
     @commands.hybrid_command(name='join', invoke_without_subcommand=True)
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _join(self, ctx: commands.Context):
 
         destination = ctx.author.voice.channel
@@ -63,7 +63,7 @@ class Music(commands.Cog):
             ctx.invoke(self._join)
 
     @commands.hybrid_command(name='summon')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _summon(self, ctx: commands.Context, *, channel: discord.VoiceChannel = None):
         if not channel and not ctx.author.voice:
             raise VoiceError('You are neither connected to a voice channel nor specified a channel to join.')
@@ -76,7 +76,7 @@ class Music(commands.Cog):
         ctx.voice_state.voice = await destination.connect()
 
     @commands.hybrid_command(name='leave', aliases=['disconnect'])
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _leave(self, ctx: commands.Context):
 
         if not ctx.voice_state.voice:
@@ -86,7 +86,7 @@ class Music(commands.Cog):
         del self.voice_states[ctx.guild.id]
 
     @commands.hybrid_command(name='volume')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _volume(self, ctx: commands.Context, *, volume: int):
 
         if not ctx.voice_state.is_playing:
@@ -99,26 +99,26 @@ class Music(commands.Cog):
         await ctx.send(embed=discord.Embed(description='Volume of the player set to {}%'.format(volume), color=config.COLOR), ephemeral=True)
 
     @commands.hybrid_command(name='now', aliases=['current', 'playing'])
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _now(self, ctx: commands.Context):
         await ctx.send(embed=ctx.voice_state.current.create_embed())
 
     @commands.hybrid_command(name='pause')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _pause(self, ctx: commands.Context):
 
         if ctx.voice_state.is_playing and ctx.voice_state.voice.is_playing():
             ctx.voice_state.voice.pause()
 
     @commands.hybrid_command(name='resume')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _resume(self, ctx: commands.Context):
 
         if ctx.voice_state.is_playing and ctx.voice_state.voice.is_paused():
             ctx.voice_state.voice.resume()
 
     @commands.hybrid_command(name='stop')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _stop(self, ctx: commands.Context):
 
         ctx.voice_state.songs.clear()
@@ -127,7 +127,7 @@ class Music(commands.Cog):
             ctx.voice_state.voice.stop()
 
     @commands.hybrid_command(name='skip')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _skip(self, ctx: commands.Context):
 
         if not ctx.voice_state.is_playing:
@@ -152,7 +152,7 @@ class Music(commands.Cog):
             await ctx.send('You have already voted to skip this song.')
 
     @commands.hybrid_command(name='queue')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _queue(self, ctx: commands.Context, *, page: int = 1):
         if len(ctx.voice_state.songs) == 0:
             return await ctx.send('Empty queue.')
@@ -172,7 +172,7 @@ class Music(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name='shuffle')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _shuffle(self, ctx: commands.Context):
         
         if len(ctx.voice_state.songs) == 0:
@@ -181,7 +181,7 @@ class Music(commands.Cog):
         ctx.voice_state.songs.shuffle()
 
     @commands.hybrid_command(name='remove')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _remove(self, ctx: commands.Context, index: int):
        
         if len(ctx.voice_state.songs) == 0:
@@ -190,7 +190,7 @@ class Music(commands.Cog):
         ctx.voice_state.songs.remove(index - 1)
 
     @commands.command(name='loop')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _loop(self, ctx: commands.Context):
      
         if not ctx.voice_state.is_playing:
@@ -199,7 +199,7 @@ class Music(commands.Cog):
         ctx.voice_state.loop = not ctx.voice_state.loop
 
     @commands.hybrid_command(name='play')
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _play(self, ctx: commands.Context, *, search: str):
         
         if ctx.voice_state.voice is None:
@@ -221,7 +221,7 @@ class Music(commands.Cog):
     @app_commands.describe(
         filename='Принимает пути к файлам в формате "path/to/file.webm", файл предварительно должен быть скачен папку'
     )
-    @commands.has_permissions(manage_guild=True)
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def play_file(self, ctx: commands.Context, *, filename: str):
         
         if not ctx.voice_state.voice:
@@ -243,6 +243,7 @@ class Music(commands.Cog):
                 raise commands.CommandError('Bot is already in a voice channel.')
     
     @commands.hybrid_command(name='menu')
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def menu(self, ctx: commands.Context, folder: str):
 
         channel = ctx.channel

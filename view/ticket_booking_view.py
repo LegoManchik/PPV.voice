@@ -64,7 +64,7 @@ class BookingTicketButton(discord.ui.View):
     async def booking_ticket(self, interaction: discord.Interaction):
         channel = await self.ticket.create_ticket(ctx=self.ctx, user=interaction.user, guild=interaction.message.guild)
         await channel.send(embed=Localization.translatable_embed(discord.Embed(), key="embed.floors", lang=self.ctx.lang), view=FloorsButtons(ctx=self.ctx))
-        await interaction.response.defer()
+        await interaction.response.send_message(channel.mention, ephemeral=True)
 
 
 #region Выбор этажа
