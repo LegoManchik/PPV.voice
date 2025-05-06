@@ -3,4 +3,6 @@ audio_files
 logs
 venv
 data/tickets.db
+data/tickets.json
 .idea
+backups

@@ -27,9 +27,7 @@ class PersistentViewBot(commands.Bot):
             self.add_view(view=ConfirmationButton(self, lang='ru'))
 
         db = TicketBookingDatabase()
-
         db.__create_tables__()
-
         if len(db.get_seat_list(1)) == 0:
             db.generate_seats()
 
