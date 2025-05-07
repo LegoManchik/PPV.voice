@@ -13,7 +13,7 @@ class DatabaseManage(commands.Cog):
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def database(self, ctx: commands.Context):
         embeds = DatabaseMenuEmbed(floor=1).get_seat_list()
-        await ctx.send(embeds=embeds, view=DatabaseMenuButtons(floor=1))
+        await ctx.send(embeds=embeds, view=DatabaseMenuButtons(floor=1), ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

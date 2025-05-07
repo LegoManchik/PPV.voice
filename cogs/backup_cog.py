@@ -53,7 +53,7 @@ class BackupSystem(commands.Cog):
 
     @commands.hybrid_command(name="backup")
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
-    async def backup(self, ctx):
+    async def backup(self, ctx: commands.Context):
         """Создать бэкап вручную"""
         backup_name = await self.create_backup(f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.db")
         if backup_name:
@@ -63,7 +63,7 @@ class BackupSystem(commands.Cog):
 
     @commands.hybrid_command(name="backups_info")
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
-    async def backups_info(self, ctx):
+    async def backups_info(self, ctx: commands.Context):
         """Показать информацию о бэкапах"""
         backups = sorted(os.listdir(self.BACKUPS_DIR), reverse=True)
         if not backups:
@@ -79,7 +79,7 @@ class BackupSystem(commands.Cog):
         embed.add_field(name="Всего бэкапов", value=str(len(backups)))
         embed.add_field(name="Общий размер", value=f"{total_size / 1024:.2f} KB")
 
-        await ctx.send(embed=embed)
+        await ctx.send(embed=embed, ephemeral=True)
 
 
 async def setup(bot):
