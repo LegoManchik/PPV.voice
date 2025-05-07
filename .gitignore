@@ -4,5 +4,6 @@ logs
 venv
 data/tickets.db
 data/tickets.json
+data/ping_users.json
 .idea
 backups

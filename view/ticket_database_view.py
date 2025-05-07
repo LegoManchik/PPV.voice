@@ -1,7 +1,6 @@
-import asyncio
-
 import discord
 from discord import TextStyle
+from discord.utils import get
 
 import config
 from data.database import TicketBookingDatabase, SeatStatus
@@ -61,7 +60,7 @@ class DatabaseMenuButtons(discord.ui.View):
 
         cancel_reservetion_button = discord.ui.Button(label="Отменить бронь", emoji="🚩", style=discord.ButtonStyle.gray, custom_id="database_menu_cancel_reservetion", row=2)
         add_reservetion_button = discord.ui.Button(label="Добавить бронь", emoji="🚩", style=discord.ButtonStyle.gray, custom_id="database_menu_add_reservetion", row=2)
-        reset_status = discord.ui.Button(label="Обновить статус места", emoji="🔄", style=discord.ButtonStyle.gray, custom_id="database_menu_reset_status", row=2)
+        reset_status = discord.ui.Button(label="Разблокировать место", emoji="🔄", style=discord.ButtonStyle.gray, custom_id="database_menu_reset_status", row=2)
 
         back_button.callback = self.back_callback
         next_button.callback = self.next_callback
@@ -76,21 +75,36 @@ class DatabaseMenuButtons(discord.ui.View):
         self.add_item(reset_status)
 
     async def back_callback(self, interaction: discord.Interaction):
-        embeds = DatabaseMenuEmbed(self.floor - 1).get_seat_list()
-        await interaction.response.edit_message(embeds=embeds, view=DatabaseMenuButtons(self.floor-1))
+        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
+            embeds = DatabaseMenuEmbed(self.floor - 1).get_seat_list()
+            await interaction.response.edit_message(embeds=embeds, view=DatabaseMenuButtons(self.floor-1))
+        else:
+            await interaction.response.defer()
 
     async def next_callback(self, interaction: discord.Interaction):
-        embeds = DatabaseMenuEmbed(self.floor + 1).get_seat_list()
-        await interaction.response.edit_message(embeds=embeds, view=DatabaseMenuButtons(self.floor+1))
+        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
+            embeds = DatabaseMenuEmbed(self.floor + 1).get_seat_list()
+            await interaction.response.edit_message(embeds=embeds, view=DatabaseMenuButtons(self.floor+1))
+        else:
+            await interaction.response.defer()
 
-    async def cancel_reservetion_callback(self, interactrion: discord.Interaction):
-        await interactrion.response.send_message(view=SeatSelectView(interactrion.message, floor=self.floor, remove_seat=True), ephemeral=True)
+    async def cancel_reservetion_callback(self, interaction: discord.Interaction):
+        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
+            await interaction.response.send_message(view=SeatSelectView(interaction.message, floor=self.floor, remove_seat=True), ephemeral=True)
+        else:
+            await interaction.response.defer()
 
-    async def add_reservetion_callback(self, interactrion: discord.Interaction):
-        await interactrion.response.send_message(view=SeatSelectView(interactrion.message, floor=self.floor, add_seat=True), ephemeral=True)
+    async def add_reservetion_callback(self, interaction: discord.Interaction):
+        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
+            await interaction.response.send_message(view=SeatSelectView(interaction.message, floor=self.floor, add_seat=True), ephemeral=True)
+        else:
+            await interaction.response.defer()
 
-    async def reset_status_callback(self, interactrion: discord.Interaction):
-        await interactrion.response.send_message(view=SeatSelectView(interactrion.message, floor=self.floor, reset_status=True), ephemeral=True)
+    async def reset_status_callback(self, interaction: discord.Interaction):
+        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
+            await interaction.response.send_message(view=SeatSelectView(interaction.message, floor=self.floor, reset_status=True), ephemeral=True)
+        else:
+            await interaction.response.defer()
 
 
 class DatabaseMenuSeatSelect(discord.ui.Select):

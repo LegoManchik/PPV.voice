@@ -5,7 +5,7 @@ from discord.utils import get
 
 import config
 from data.database import TicketBookingDatabase
-from data.extract_ticket_number import ExtractTicketNumber
+from data.extract_json import JsonExtract
 from utils.localization import LangContext
 
 
@@ -16,8 +16,8 @@ class TicketSystem:
         self.db = TicketBookingDatabase()
 
     async def create_ticket(self, ctx: LangContext, user: discord.Member, guild: discord.Guild) -> discord.TextChannel:
-        ticket_number = ExtractTicketNumber.get_random_number()
-        ExtractTicketNumber.add_number(ticket_number)
+        ticket_number = JsonExtract.get_random_number()
+        JsonExtract.add_number(ticket_number)
 
         role = get(guild.roles, id=config.SUPERVISOR_ROLE_ID)
 

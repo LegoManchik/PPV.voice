@@ -8,6 +8,7 @@ from discord.utils import get
 import config
 
 from data.database import TicketBookingDatabase, SeatStatus
+from data.extract_json import JsonExtract
 from data.seat_data import SeatData
 from utils.localization import Localization, LangContext, Language
 from utils.tickets import TicketSystem
@@ -281,4 +282,4 @@ class AddPlayersModal(discord.ui.Modal):
         ticket_data = {'channel': interaction.channel, 'floor': self.floor, 'seat': self.seat, 'user': interaction.user, 'players': self.players.value.split(' ')}
 
         await interaction.channel.set_permissions(get(interaction.guild.members, name=interaction.channel.name.split('-')[2]), read_messages=True, send_messages=True)
-        await channel.send(content={True: f"<@709259277675659367>", False: "Пинга не буде"}.get(config.PING), embed=embed, view=RentalRequestButtons(ctx=self.ctx, ticket_data=ticket_data))
+        await channel.send(content=f"<@{'> <@'.join(JsonExtract.get_user_id_list())}>", embed=embed, view=RentalRequestButtons(ctx=self.ctx, ticket_data=ticket_data))

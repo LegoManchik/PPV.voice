@@ -6,7 +6,7 @@ class NonUniqueNumber(Exception):
     pass
 
 
-class ExtractTicketNumber:
+class JsonExtract:
     @classmethod
     def get_random_number(cls):
         with open("data/tickets.json", "r+", encoding="utf-8") as f:
@@ -16,7 +16,7 @@ class ExtractTicketNumber:
             if number in data:
                 raise NonUniqueNumber
         except NonUniqueNumber:
-            return ExtractTicketNumber.get_random_number()
+            return JsonExtract.get_random_number()
 
         return number
 
@@ -27,3 +27,10 @@ class ExtractTicketNumber:
             data.append(number)
             f.seek(0)
             json.dump(data, f)
+
+    @classmethod
+    def get_user_id_list(cls):
+        with open("data/ping_users.json", "r+", encoding="utf-8") as f:
+            data = json.load(f)
+
+        return list(map(str, data))
