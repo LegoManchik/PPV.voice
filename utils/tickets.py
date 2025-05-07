@@ -24,7 +24,7 @@ class TicketSystem:
         category = discord.utils.get(guild.categories, id=config.TICKETS_CATEGORY_ID)
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=False),
             role: discord.PermissionOverwrite(read_messages=True, send_messages=True)
         }
 

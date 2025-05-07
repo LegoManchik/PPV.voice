@@ -1,9 +1,7 @@
 
 import math
 import os
-from operator import itemgetter
 
-import discord
 from discord import app_commands
 
 import config  # type: ignore

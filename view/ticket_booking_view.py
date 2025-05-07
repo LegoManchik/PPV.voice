@@ -37,14 +37,20 @@ class ConfirmationButton(discord.ui.View):
         self.lang = lang
         self.bot = bot
 
+        self.db = TicketBookingDatabase()
+
         button = discord.ui.Button(label=Localization.translatable("button.book_ticket", lang), style=discord.ButtonStyle.red, custom_id=f'book_ticket_{lang}', row=1)
         button.callback = self.confirm_callback
 
         self.add_item(button)
 
     async def confirm_callback(self, interaction: discord.Interaction):
-        ctx = await LangContext.get_context_from_interactionc(bot=self.bot, interaction=interaction)
-        await interaction.response.send_message(embed=Localization.translatable_embed(discord.Embed(), key="embed.booking_confirm", lang=self.lang), view=BookingTicketButton(ctx=ctx, lang=self.lang), ephemeral=True, delete_after=5)
+        if not self.db.user_in_seats(interaction.user):
+            ctx = await LangContext.get_context_from_interactionc(bot=self.bot, interaction=interaction)
+            await interaction.response.send_message(embed=Localization.translatable_embed(discord.Embed(), key="embed.booking_confirm", lang=self.lang), view=BookingTicketButton(ctx=ctx, lang=self.lang), ephemeral=True, delete_after=5)
+        else:
+            await interaction.response.send_message(
+                embed=Localization.translatable_embed(discord.Embed(), key="embed.user_in_seat", lang=self.lang), ephemeral=True, delete_after=5)
 
 
 class BookingTicketButton(discord.ui.View):

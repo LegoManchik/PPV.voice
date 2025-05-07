@@ -1,5 +1,8 @@
 import enum
 import sqlite3
+
+import discord
+
 from data.seat_data import SeatData
 
 DATA_BASE = "data/tickets.db"
@@ -86,3 +89,14 @@ class TicketBookingDatabase:
         self.cur.execute(f'SELECT status FROM floor_{floor} WHERE seat = ?', (seat,))
         self.con.commit()
         return self.cur.fetchall()[0][0] == SeatStatus.AVAILABLE.value
+
+    def user_in_seats(self, user: discord.User):
+        for floor in range(1, 4):
+            self.cur.execute(f'''
+                        SELECT seat, user_id, players, status
+                        FROM floor_{floor}
+                    ''')
+            for seat in self.cur.fetchall():
+                if user.id in seat:
+                    return True
+        return False

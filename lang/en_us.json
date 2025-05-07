@@ -16,6 +16,10 @@
     "description": "**Are you sure you want to reserve a seat?**"
   },
 
+  "embed.user_in_seat": {
+    "description": "**You have already booked a place**"
+  },
+
   "embed.floors": {
     "title": "Choose the floor you want to sit on",
     "description": "",
