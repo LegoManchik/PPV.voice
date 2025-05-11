@@ -4,7 +4,7 @@
   "button.close_ticket": "Close Ticket",
   "modal_title.player_list": "Add companions",
   "modal_label.player_list": "Player List",
-  "modal_placeholder.prompt": "Write the nicknames of those you want to invite, separated by a space",
+  "modal_placeholder.prompt": "Write your nickname and the nicknames of those you want to name, separated by a space.",
 
   "embed.ticket_booking": {
     "title": "In this channel you can book tickets for the ENIGMA show.",
@@ -28,15 +28,18 @@
 
   "embed.floor_1": {
     "title": "Ground Floor",
-    "description": "Choose the seat where you want to sit. The locked seat buttons mean that the seat has already been booked."
+    "description": "Choose the seat where you want to sit. The locked seat buttons mean that the seat has already been booked.",
+    "image": "https://media.discordapp.net/attachments/1365977478157303839/1366827898085834812/Frame_15620.png"
   },
   "embed.floor_2": {
     "title": "2nd Floor",
-    "description": "Choose the seat where you want to sit. The locked seat buttons mean that the seat has already been booked."
+    "description": "Choose the seat where you want to sit. The locked seat buttons mean that the seat has already been booked.",
+    "image": "https://media.discordapp.net/attachments/1365977478157303839/1366827896471158896/Frame_15621.png"
   },
   "embed.floor_3": {
     "title": "3rd Floor",
-    "description": "Choose the seat where you want to sit. The locked seat buttons mean that the seat has already been booked."
+    "description": "Choose the seat where you want to sit. The locked seat buttons mean that the seat has already been booked.",
+    "image": "https://media.discordapp.net/attachments/1365977478157303839/1366827894642573404/Frame_15623.png"
   },
 
   "embed.moderators_notification": {

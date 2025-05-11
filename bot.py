@@ -6,11 +6,10 @@ import discord
 from discord.ext import commands
 
 import config
-from utils.localization import LangContext
 
 from utils.logger import BotLogger
 from data.database import TicketBookingDatabase
-from view.ticket_booking_view import BookingTicketButton, ConfirmationButton
+from view.ticket_booking_view import ConfirmationButton
 
 
 class PersistentViewBot(commands.Bot):

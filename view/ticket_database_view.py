@@ -5,6 +5,7 @@ from discord.utils import get
 import config
 from data.database import TicketBookingDatabase, SeatStatus
 from utils.localization import Localization
+from view.view import LimitedView
 
 
 class DatabaseMenuEmbed:
@@ -49,9 +50,9 @@ class DatabaseMenuEmbed:
         return embeds
 
 
-class DatabaseMenuButtons(discord.ui.View):
+class DatabaseMenuButtons(LimitedView):
     def __init__(self, floor: int = 1):
-        super().__init__(timeout=None)
+        super().__init__()
 
         self.floor = floor
 
@@ -75,33 +76,33 @@ class DatabaseMenuButtons(discord.ui.View):
         self.add_item(reset_status)
 
     async def back_callback(self, interaction: discord.Interaction):
-        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
+        if self.is_moderator(interaction.user):
             embeds = DatabaseMenuEmbed(self.floor - 1).get_seat_list()
             await interaction.response.edit_message(embeds=embeds, view=DatabaseMenuButtons(self.floor-1))
         else:
             await interaction.response.defer()
 
     async def next_callback(self, interaction: discord.Interaction):
-        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
+        if self.is_moderator(interaction.user):
             embeds = DatabaseMenuEmbed(self.floor + 1).get_seat_list()
             await interaction.response.edit_message(embeds=embeds, view=DatabaseMenuButtons(self.floor+1))
         else:
             await interaction.response.defer()
 
     async def cancel_reservetion_callback(self, interaction: discord.Interaction):
-        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
+        if self.is_moderator(interaction.user):
             await interaction.response.send_message(view=SeatSelectView(interaction.message, floor=self.floor, remove_seat=True), ephemeral=True)
         else:
             await interaction.response.defer()
 
     async def add_reservetion_callback(self, interaction: discord.Interaction):
-        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
+        if self.is_moderator(interaction.user):
             await interaction.response.send_message(view=SeatSelectView(interaction.message, floor=self.floor, add_seat=True), ephemeral=True)
         else:
             await interaction.response.defer()
 
     async def reset_status_callback(self, interaction: discord.Interaction):
-        if get(interaction.user.roles, id=config.SUPERVISOR_ROLE_ID) is not None or get(interaction.user.roles, id=config.OPERATOR_ROLE_ID) is not None:
+        if self.is_moderator(interaction.user):
             await interaction.response.send_message(view=SeatSelectView(interaction.message, floor=self.floor, reset_status=True), ephemeral=True)
         else:
             await interaction.response.defer()
@@ -205,7 +206,7 @@ class AddPlayersToDatabaseModal(discord.ui.Modal):
         label="modal_label.player_list",
         placeholder="modal_placeholder.prompt",
         custom_id=f"players_list",
-        style=TextStyle.short,
+        style=TextStyle.long,
         max_length=100
     )
 
