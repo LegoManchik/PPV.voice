@@ -42,6 +42,12 @@
     "image": "https://media.discordapp.net/attachments/1365977478157303839/1366827894642573404/Frame_15623.png"
   },
 
+  "embed.fan_zone": {
+    "title": "Фан-Зона",
+    "description": "Места с наилучшим видом. Можете пригласить не более 3х человек.",
+    "image": "https://media.discordapp.net/attachments/1365977478157303839/1371826434133463120/Frame_15692.png"
+  },
+
   "embed.moderators_notification": {
     "title": "Ваш запрос на бронирование отправлен!",
     "description": "Модераторы свяжутся с вами в ближайшее время."

@@ -78,22 +78,25 @@ class FloorsButtons(discord.ui.View):
 
         self.ticket = TicketSystem(self.ctx.bot)
 
-        floor_1 = discord.ui.Button(emoji="1️⃣", label=f"{'⠀'*9}", style=discord.ButtonStyle.gray, custom_id='floor_1', row=1)
-        floor_2 = discord.ui.Button(emoji="2️⃣", label=f"{'⠀'*9}", style=discord.ButtonStyle.gray, custom_id='floor_2', row=1)
-        floor_3 = discord.ui.Button(emoji="3️⃣", label=f"{'⠀'*9}", style=discord.ButtonStyle.gray, custom_id='floor_3', row=1)
+        floor_1 = discord.ui.Button(emoji="1️⃣", label=f"{'⠀'*9}", style=discord.ButtonStyle.gray, custom_id='floor_1', row=2)
+        floor_2 = discord.ui.Button(emoji="2️⃣", label=f"{'⠀'*9}", style=discord.ButtonStyle.gray, custom_id='floor_2', row=2)
+        floor_3 = discord.ui.Button(emoji="3️⃣", label=f"{'⠀'*9}", style=discord.ButtonStyle.gray, custom_id='floor_3', row=2)
+        fan_zone = discord.ui.Button(label=f"⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀Fan-Zone⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", style=discord.ButtonStyle.gray, custom_id='fan_zone', row=1)
 
         close_ticket = discord.ui.Button(label=f"{Localization.translatable('button.close_ticket', lang=self.ctx.lang):⠀^47}",
-                                         style=discord.ButtonStyle.gray, custom_id='close_ticket', row=2)
+                                         style=discord.ButtonStyle.gray, custom_id='close_ticket', row=3)
 
         floor_1.callback = self.floor_1_callback
         floor_2.callback = self.floor_2_callback
         floor_3.callback = self.floor_3_callback
+        fan_zone.callback = self.fanzone_callback
 
         close_ticket.callback = self.close_ticket_callback
 
         self.add_item(floor_1)
         self.add_item(floor_2)
         self.add_item(floor_3)
+        self.add_item(fan_zone)
         self.add_item(close_ticket)
 
     async def floor_1_callback(self, interaction: discord.Interaction):
@@ -104,6 +107,9 @@ class FloorsButtons(discord.ui.View):
 
     async def floor_3_callback(self, interaction: discord.Interaction):
         await interaction.response.edit_message(embed=Localization.translatable_embed(discord.Embed(), f"embed.floor_3", self.ctx.lang), view=ChoiceSeatButtons(self.ctx, 3))
+
+    async def fanzone_callback(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(embed=Localization.translatable_embed(discord.Embed(), f"embed.fan_zone", self.ctx.lang), view=SeatButtons(self.ctx, floor=4, seat="FanZone"))
 
     async def close_ticket_callback(self, interaction: discord.Interaction):
         await self.ticket.close_ticket(channel=interaction.channel)
@@ -263,7 +269,8 @@ class AddPlayersModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         channel = get(interaction.guild.channels, id=config.CONFIRMATION_CHANNEL_ID)
 
-        self.db.set_seat_status(self.floor, self.seat, SeatStatus.UNAVAILABLE)
+        if self.seat != "FanZone":
+            self.db.set_seat_status(self.floor, self.seat, SeatStatus.UNAVAILABLE)
 
         embed = discord.Embed(title="Заявка", description=f"{interaction.user.mention} подал заяву на бронирования места **{self.seat}**")
         embed.set_author(name=interaction.channel.name, url=interaction.channel.jump_url, icon_url=interaction.user.avatar.url)
@@ -277,5 +284,6 @@ class AddPlayersModal(discord.ui.Modal):
 
         logger.info(f"Ticket info {interaction.user.name}: {ticket_data}")
 
+        #<@{'> <@'.join(JsonExtract.get_user_id_list())}>
         await interaction.channel.set_permissions(get(interaction.guild.members, id=interaction.user.id), read_messages=True, send_messages=True)
-        await channel.send(content=f"<@{'> <@'.join(JsonExtract.get_user_id_list())}>", embed=embed, view=RentalRequestButtons(ctx=self.ctx, ticket_data=ticket_data))
+        await channel.send(content=f"", embed=embed, view=RentalRequestButtons(ctx=self.ctx, ticket_data=ticket_data))

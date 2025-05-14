@@ -197,6 +197,16 @@
           "color": "f7ff07",
           "image": "https://cdn.discordapp.com/attachments/1365977478157303839/1366509221432266974/Y04.png?ex=6811dd22&is=68108ba2&hm=16699972a279e083934f45d5cfb13ce1784e28582974062aab0573c52ef7fc68&"
         }
+      },
+      "4": {
+        "FanZone": {
+          "description": {
+            "en": "Places with the best view. You can invite no more than 3 people.",
+            "ru": "Места с наилучшим видом. Можете пригласить не более 3х человек."
+          },
+          "color": "ff3636",
+          "image": "https://media.discordapp.net/attachments/1365977478157303839/1371826434133463120/Frame_15692.png"
+        }
       }
   }
 }

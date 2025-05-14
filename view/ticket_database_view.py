@@ -1,3 +1,5 @@
+import random
+
 import discord
 from discord import TextStyle
 from discord.utils import get
@@ -30,6 +32,10 @@ class DatabaseMenuEmbed:
 
             status = "✅"
             avalible = self.db.is_avalible(self.floor, seat[0])
+
+            if seat[0] == "FanZone":
+                avalible = self.db.is_avalible(self.floor, seat[0], seat[1])
+
             if not avalible:
                 if seat[1] is None:
                     status = "🟨"
@@ -57,7 +63,7 @@ class DatabaseMenuButtons(LimitedView):
         self.floor = floor
 
         back_button = discord.ui.Button(emoji="⬅", style=discord.ButtonStyle.gray, custom_id="database_menu_back", disabled=floor==1, row=1)
-        next_button = discord.ui.Button(emoji="➡", style=discord.ButtonStyle.gray, custom_id="database_menu_next", disabled=floor==3, row=1)
+        next_button = discord.ui.Button(emoji="➡", style=discord.ButtonStyle.gray, custom_id="database_menu_next", disabled=floor==4, row=1)
 
         cancel_reservetion_button = discord.ui.Button(label="Отменить бронь", emoji="🚩", style=discord.ButtonStyle.gray, custom_id="database_menu_cancel_reservetion", row=2)
         add_reservetion_button = discord.ui.Button(label="Добавить бронь", emoji="🚩", style=discord.ButtonStyle.gray, custom_id="database_menu_add_reservetion", row=2)
@@ -123,6 +129,10 @@ class DatabaseMenuSeatSelect(discord.ui.Select):
         for seat in self.db.get_seat_list(floor):
             status = "✅"
             avalible = self.db.is_avalible(self.floor, seat[0])
+
+            if seat[0] == "FanZone":
+                avalible = self.db.is_avalible(self.floor, seat[0], seat[1])
+
             if not avalible:
                 if seat[1] is None:
                     status = "🟨"
@@ -132,7 +142,7 @@ class DatabaseMenuSeatSelect(discord.ui.Select):
             options.append(
                 discord.SelectOption(
                     label=seat[0],
-                    value=f'{seat[0]}_{seat[1]}',
+                    value=f'{seat[0]}_{seat[1]}_{random.randint(1, 100)}',
                     description=f"{seat[1]} | {seat[2]}",
                     emoji=status
                 )
@@ -150,20 +160,29 @@ class DatabaseMenuSeatSelect(discord.ui.Select):
 
     async def callback(self, inter: discord.Interaction):
         seat = self.values[0].split("_")[0]
+        user = self.values[0].split("_")[1]
 
-        if self.remove_seat and self.values[0].split("_")[1] != "None":
-            self.db.remove_user(self.floor, seat)
-            self.db.set_seat_status(self.floor, seat, SeatStatus.AVAILABLE)
+        if self.remove_seat and user != "None":
+            if seat == "FanZone":
+                self.db.remove_user(self.floor, seat, int(user))
+            else:
+                self.db.remove_user(self.floor, seat)
+
+                self.db.set_seat_status(self.floor, seat, SeatStatus.AVAILABLE)
 
             embed = DatabaseMenuEmbed(self.floor).get_seat_list()
             await self.message.edit(embeds=embed, view=DatabaseMenuButtons(floor=self.floor))
-            await inter.response.edit_message(view=SeatSelectView(self.message, self.floor))
+            await inter.response.edit_message(view=SeatSelectView(self.message, self.floor, remove_seat=True))
 
-        elif self.add_seat and self.values[0].split("_")[1] == "None":
+        elif self.add_seat and user == "None":
             await inter.response.edit_message(view=UserSelectView(self.message, self.floor, seat))
 
-        elif self.reset_status and self.values[0].split("_")[1] == "None" and not self.db.is_avalible(self.floor, seat):
-            self.db.set_seat_status(self.floor, seat, SeatStatus.AVAILABLE)
+        elif self.reset_status and user == "None" and not self.db.is_avalible(self.floor, seat):
+            if seat == "Fanzone":
+                self.db.set_seat_status(floor=self.floor, seat=seat, status=SeatStatus.AVAILABLE, user_id=int(user))
+            else:
+                self.db.set_seat_status(floor=self.floor, seat=seat, status=SeatStatus.AVAILABLE)
+
             embed = DatabaseMenuEmbed(self.floor).get_seat_list()
             await self.message.edit(embeds=embed, view=DatabaseMenuButtons(floor=self.floor))
             await inter.response.edit_message(view=SeatSelectView(self.message, self.floor, reset_status=True))
@@ -175,7 +194,18 @@ class SeatSelectView(discord.ui.View):
     def __init__(self, message, floor: int, remove_seat: bool = False, add_seat: bool = False, reset_status: bool = False):
         super().__init__(timeout=None)
 
+        self.message = message
+        self.floor = floor
+
+        if floor == 4 and remove_seat is False and reset_status is False:
+            button = discord.ui.Button(label="Добавить бронь FanZone", emoji="➕", style=discord.ButtonStyle.gray, custom_id="add_fanzone")
+            button.callback = self.add_fanzone_callback
+            self.add_item(button)
+
         self.add_item(DatabaseMenuSeatSelect(message=message, floor=floor, remove_seat=remove_seat, add_seat=add_seat, reset_status=reset_status))
+
+    async def add_fanzone_callback(self, interaction: discord.Interaction):
+        await interaction.response.send_message(view=UserSelectView(message=self.message, floor=self.floor, seat="FanZone"), ephemeral=True)
 
 
 class UserSelect(discord.ui.UserSelect):

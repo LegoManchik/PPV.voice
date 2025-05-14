@@ -42,6 +42,12 @@
     "image": "https://media.discordapp.net/attachments/1365977478157303839/1366827894642573404/Frame_15623.png"
   },
 
+  "embed.fan_zone": {
+    "title": "Fan Zone",
+    "description": "Places with the best view. You can invite no more than 3 people.",
+    "image": "https://media.discordapp.net/attachments/1365977478157303839/1371826434133463120/Frame_15692.png"
+  },
+
   "embed.moderators_notification": {
     "title": "Your booking request has been sent!",
     "description": "Moderation will contact you soon."
