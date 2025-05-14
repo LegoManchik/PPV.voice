@@ -284,6 +284,5 @@ class AddPlayersModal(discord.ui.Modal):
 
         logger.info(f"Ticket info {interaction.user.name}: {ticket_data}")
 
-        #<@{'> <@'.join(JsonExtract.get_user_id_list())}>
         await interaction.channel.set_permissions(get(interaction.guild.members, id=interaction.user.id), read_messages=True, send_messages=True)
-        await channel.send(content=f"", embed=embed, view=RentalRequestButtons(ctx=self.ctx, ticket_data=ticket_data))
+        await channel.send(content=f"<@{'> <@'.join(JsonExtract.get_user_id_list())}>", embed=embed, view=RentalRequestButtons(ctx=self.ctx, ticket_data=ticket_data))

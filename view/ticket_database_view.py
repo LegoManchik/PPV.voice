@@ -2,7 +2,6 @@ import random
 
 import discord
 from discord import TextStyle
-from discord.utils import get
 
 import config
 from data.database import TicketBookingDatabase, SeatStatus
