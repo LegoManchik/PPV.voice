@@ -113,7 +113,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
             if e.code == 403:
                 filename = yt_dlp.YoutubeDL(cls.YTDL_OPTIONS).prepare_filename(info)
                 
-                return cls(inter, discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(filename, **cls.FFMPEG_OPTIONS)), data=info) 
+                return cls(inter, discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(filename, **cls.FFMPEG_OPTIONS)), data=info)
         else:
             return cls(inter, discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(info['url'], **cls.FFMPEG_OPTIONS)), data=info)
         
@@ -131,7 +131,6 @@ class YTDLSource(discord.PCMVolumeTransformer):
     
     @classmethod
     async def file_source(cls, inter, filename: str):
-
         return cls(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(filename, **cls.FFMPEG_OPTIONS)))
         
     @staticmethod

@@ -7,6 +7,10 @@ from mutagen.mp3 import MP3
 import config
 from utils.ytdl_source import YTDLSource
 
+FFMPEG_OPTIONS = {
+    'before_options': '-re -fflags +genpts -flags low_delay -strict experimental',
+    'options': '-vn -b:a 128k -filter:a "asetpts=N/SR/TB, volume=1.0" -af aresample=async=1',
+}
 
 class Song:
     __slots__ = ('source', 'requester')
@@ -31,7 +35,7 @@ class AudioFile:
     __slots__ = ('song', 'source', 'filename', 'volume', 'duration', 'player')
 
     def __init__(self, filename: str, player):
-        self.song: dict = {'filename': filename, 'source': discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(filename)), 'duration': self.get_duration(filename), 'player': player}
+        self.song: dict = {'filename': filename, 'source': discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(filename, **FFMPEG_OPTIONS)), 'duration': self.get_duration(filename), 'player': player}
         self.filename: str = filename
         self.source = self.song.get('source')
         self.volume: float = self.song.get('source').volume

@@ -6,8 +6,10 @@ from pytube import Playlist
 
 
 import config
+from utils.sort_utils import first_number
 from utils.ytdl_source import YTDLSource
 from view.file_manager_view import MkDirButtons
+from view.file_manager_view import get_filelist_embed
 
 
 class FileManage(commands.Cog):
@@ -57,18 +59,7 @@ class FileManage(commands.Cog):
     @commands.hybrid_command(name='explorer')
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def explorer(self, ctx: commands.Context):
-        folders_list = ''
-
-        for folder in os.listdir('./audio_files'):
-            if not(folder.endswith('.webm')):
-                folders_list += f'```{folder}```'
-        else:
-            if folders_list == '':
-                folders_list += '```Здесь пусто!```'
-
-        embed = discord.Embed(description=folders_list, color=config.COLOR)
-        
-        message = await ctx.send(embed=embed, ephemeral=True)
+        message = await ctx.send(embed=get_filelist_embed(os.listdir('./audio_files')))
         await message.edit(view=MkDirButtons(message))
 
 

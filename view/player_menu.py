@@ -130,26 +130,25 @@ class Buttons(discord.ui.View):
     # noinspection PyTypeChecker
     async def button_callback(self, inter: discord.Interaction):
         button_id = inter.data.get('custom_id')
-        
-        if button_id.endswith('.webm') or button_id.endswith('.mp3') or button_id.endswith('.wav'):
-            if not self.ctx.voice_state.voice:
-                destination = self.ctx.author.voice.channel
-                if self.ctx.voice_state.voice:
-                    await self.ctx.voice_state.voice.move_to(destination)
-                    return
-                
-                if self.ctx.voice_state.is_playing:
-                    await self.ctx.voice_state.stop()
-                
-                self.ctx.voice_state.voice = await destination.connect()
 
-            file = AudioFile(button_id, self.ctx.menu_state.player)
+        if not self.ctx.voice_state.voice:
+            destination = self.ctx.author.voice.channel
+            if self.ctx.voice_state.voice:
+                await self.ctx.voice_state.voice.move_to(destination)
+                return
 
-            await self.ctx.voice_state.play_file(file)
-            
-            await self.ctx.menu_state.menu.edit(view=MenuButtons(self.ctx, self.player, file.volume))
+            if self.ctx.voice_state.is_playing:
+                await self.ctx.voice_state.stop()
+
+            self.ctx.voice_state.voice = await destination.connect()
+
+        file = AudioFile(button_id, self.ctx.menu_state.player)
+
+        await self.ctx.voice_state.play_file(file)
+
+        await self.ctx.menu_state.menu.edit(view=MenuButtons(self.ctx, self.player, file.volume))
         
-        await inter.response.defer()
+
         
     async def queue_button_callback(self, inter: discord.Interaction):
         button_id = inter.data.get('custom_id')

@@ -5,6 +5,7 @@ import os
 from discord import app_commands
 
 import config  # type: ignore
+from utils.sort_utils import first_number
 from utils.ytdl_source import YTDLSource, YTDLError  # type: ignore
 from utils.voice_utils import VoiceState, VoiceError  # type: ignore
 from utils.song_embed import Song  # type: ignore
@@ -268,10 +269,7 @@ class Music(commands.Cog):
 
         components = sorted(
             components,
-            key=lambda x: (
-                int(split[0]) if (split := x['label'].split('_', 1))[0].isdigit()
-                else float('inf')
-            )
+            key=lambda x: first_number(x['label'])
         )
 
         archive = discord.Embed(title='Архив', color=config.COLOR)
