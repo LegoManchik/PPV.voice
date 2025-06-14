@@ -2,10 +2,13 @@ from aiogram import Router, types
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 
+import config
+from utils.command_filters import UserIdFilter
+
 router = Router(name="start")
 
 
-@router.message(CommandStart())
+@router.message(UserIdFilter(config.TG_USERS), CommandStart())
 async def start_handler(message: types.Message):
     text = """
 <blockquote><b>Привет, я PPV bot!</b></blockquote>

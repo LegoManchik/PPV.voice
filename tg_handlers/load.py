@@ -4,10 +4,13 @@ from aiogram import Router, types
 from aiogram.enums import ParseMode
 from aiogram.filters import Command
 
+import config
+from utils.command_filters import UserIdFilter
+
 router = Router(name="load")
 
 
-@router.message(Command(commands=["load", "download", "l"]))
+@router.message(UserIdFilter(config.TG_USERS), Command(commands=["load", "download", "l"]))
 async def load_handler(message: types.Message):
     message_content = message.audio if message.audio is not None else message.document
 
