@@ -6,9 +6,9 @@
   "modal_label.player_list": "Player List",
   "modal_placeholder.prompt": "Write your nickname and the nicknames of those you want to name, separated by a space.",
 
-  "layout.ticket_booking.title": "In this channel you can book tickets for the ENIGMA show",
-  "layout.ticket_booking.description": "The advantages of the armor are the beautiful view and proximity to the artist. The reserved seats will be reflected on the seat map. The server can be accessed from both a licensed and a pirated version of the game.\n\nThis time our hall consists of 3 sitting floors. The hall is divided into 5 zones: Purple Zone, Red Zone, Green Zone, Yellow Zone, Turquoise Zone. You can see the map of places by clicking on the button below. ↓\n\n>>> **Players take the unarmored seats on the server before the show. You have the opportunity to get a good place with the best view. One place is designed for 3 people**.",
-  "layout.ticket_booking.image": "https://media.discordapp.net/attachments/1365977478157303839/1369414610943217784/image_2025-05-06_23-39-14.png?ex=68c7293d&is=68c5d7bd&hm=86f999661a6b901ec6197083a6e1d804e947ca4bbc5c575babaf61c9aa80d8fe&=&format=webp&quality=lossless&width=1524&height=858",
+  "layout.ticket_booking.title": "Booking",
+  "layout.ticket_booking.description": "In this channel, you can book tickets for the SFL football match and The Weeknd's performance\n\n\n\nThe advantages of the booking are the beautiful view and proximity to the artist and the field. The server can be accessed from both a licensed and a pirated version of the game. This time, the server will be closed to players who have not booked.\n\nThis time our hall consists of 2 floors. The hall is divided into 4 zones: Red Sector, Yellow Sector, White Sector, Purple Sector. You can see the map of places by clicking on the button below. ↓\n\n>>> Players who have not booked seats will not be allowed on the server. You have the opportunity to get a good place with the best view. One ticket is designed for 3 people.",
+  "layout.ticket_booking.image": "https://media.discordapp.net/attachments/1365977478157303839/1421154233507381368/image.png?ex=68d80085&is=68d6af05&hm=5de2a8cc0d9fd0b6b4b4b16ee85dffd2256b7708f01f99bb54d2b913dabbf026&=&format=webp&quality=lossless&width=1572&height=884",
 
   "layout.booking_confirm.description": "Are you sure you want to reserve a seat?",
 
