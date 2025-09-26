@@ -1,4 +1,4 @@
-discord_bot/config.py
+discord_bot/.env
 config.py
 audio_files
 logs

@@ -1,7 +1,9 @@
+import json
 import logging
 import os
 
 import asyncio
+from dotenv import load_dotenv
 
 import discord
 from aiogram import Bot, Dispatcher
@@ -20,6 +22,8 @@ logger_manager = BotLogger()
 main_logger = logger_manager.get_main_logger()
 discord_logger = logger_manager.get_discord_logger()
 telegram_logger = logger_manager.get_telegram_logger()
+
+load_dotenv('./.env')
 
 
 class DiscordBot(commands.Bot):
@@ -47,11 +51,12 @@ class DiscordBot(commands.Bot):
         database.generate_seats()
 
         if not "tickets.json" in os.listdir("data"):
-            os.mkdir("data/tickets.json")
+            with open("data/tickets.json", "w", encoding="utf-8") as file:
+                json.dump([], file, indent=4)
 
         if not "ping_users.json" in os.listdir("data"):
-            os.mkdir("data/ping_users.json")
-
+            with open("data/ping_users.json", "w", encoding="utf-8") as file:
+                json.dump([], file, indent=4)
 
     async def load_extensions(self):
         for filename in os.listdir('./cogs'):
@@ -76,12 +81,12 @@ class TelegramBot:
 
 
 discord_bot = DiscordBot()
-telegram_bot = TelegramBot(config.TG_TOKEN)
+telegram_bot = TelegramBot(os.getenv("TG_TOKEN"))
 
 
 async def run_discord_bot():
     try:
-        await discord_bot.start(config.DS_TOKEN)
+        await discord_bot.start(os.getenv("DS_TOKEN"))
     except Exception as e:
         discord_logger.error(f"Ошибка Discord бота: {e}")
     finally:
