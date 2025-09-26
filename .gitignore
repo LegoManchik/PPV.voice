@@ -1,9 +1,13 @@
+discord_bot/config.py
 config.py
 audio_files
 logs
 venv
-data/tickets.db
-data/tickets.json
-data/ping_users.json
+discord_bot/data/tickets.db
+discord_bot/data/tickets.json
+discord_bot/data/ping_users.json
+discord_bot/data/seats_gen.py
+discord_bot/data/tickets.db-shm
+discord_bot/data/tickets.db-wal
 .idea
 backups
