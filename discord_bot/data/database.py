@@ -134,7 +134,6 @@ class TicketBookingDatabase:
                         cursor.execute(
                              f'''INSERT INTO floor_{floor} (seat, user_id) VALUES (?, ?)''', (seat, None)
                          )
-            logger.info("Места сгенерированы")
 
     @database_retry()
     def get_seat_list(self, floor: str) -> list:
