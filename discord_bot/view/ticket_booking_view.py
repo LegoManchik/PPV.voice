@@ -14,7 +14,7 @@ from discord.utils import get
 from discord_bot import config
 from discord_bot.data.database import TicketBookingDatabase, SeatStatus
 from discord_bot.data.extract_json import JsonExtract
-from discord_bot.data.seat_data import SeatData
+from discord_bot.data.seat_data import SeatData, SeatModes
 from discord_bot.utils.decorators import is_moderator
 from discord_bot.utils.localization import Localization, LangContext, Language
 from discord_bot.utils.logger import BotLogger, interaction_error_handler
@@ -111,13 +111,13 @@ class ChoiseFloorView(ui.LayoutView):
         current_row = ui.ActionRow()
         row_counter = 1
 
-        for i in JsonExtract.get_seats():
+        for floor in JsonExtract.get_seats():
             if len(current_row.children) >= 5:
                 container.add_item(current_row)
                 row_counter += 1
                 current_row = ui.ActionRow(id=row_counter)
 
-            button = FloorButton(ctx=ctx, lang=lang, floor=i)
+            button = FloorButton(ctx=ctx, lang=lang, floor=floor, disabled=not database.floor_is_available(floor))
             current_row.add_item(button)
 
         if current_row.children:
@@ -151,7 +151,7 @@ class SeatView(ui.LayoutView):
 
 class ReloadButton(ui.Button):
     def __init__(self, ctx: Context, lang: str, disabled: bool = False):
-        super().__init__(emoji="🔁", style=discord.ButtonStyle.blurple, custom_id=f"booking_reload", disabled=disabled)
+        super().__init__(emoji="🔁", style=discord.ButtonStyle.gray, custom_id=f"booking_reload", disabled=disabled)
 
         self.value: Optional[bool] = None
         self.ctx = ctx
@@ -163,8 +163,8 @@ class ReloadButton(ui.Button):
 
 
 class FloorButton(ui.Button):
-    def __init__(self, ctx: Context, lang: str, floor: str):
-        super().__init__(label=f"{floor:⠀^12}", style=discord.ButtonStyle.gray, custom_id=f"floor_{floor}")
+    def __init__(self, ctx: Context, lang: str, floor: str, disabled: bool = False):
+        super().__init__(label=f"{floor:⠀^12}", style=discord.ButtonStyle.gray, custom_id=f"floor_{floor}", disabled=disabled)
 
         self.value: Optional[bool] = None
         self.ctx = ctx
@@ -224,7 +224,7 @@ class ChoiseSeatView(ui.LayoutView):
         current_row = ui.ActionRow()
         row_counter = 1
 
-        for seat, user_id, players, status in self.paginated_seats:
+        for seat, players, status in self.paginated_seats:
             if len(current_row.children) >= 5:
                 self.main_container.add_item(current_row)
                 row_counter += 1
@@ -298,7 +298,7 @@ class BackSeatButton(ui.Button):
 class SeatButton(ui.Button):
     def __init__(self, ctx: Context, lang: str, floor: str, seat: str):
         self.database = TicketBookingDatabase()
-        super().__init__(label=str(seat), style=discord.ButtonStyle.gray, custom_id=seat, disabled=not self.database.is_avalible(floor, seat))
+        super().__init__(label=str(seat), style=discord.ButtonStyle.gray, custom_id=seat, disabled=not self.database.seat_is_available(floor, seat))
 
         self.ctx = ctx
         self.lang = lang
@@ -374,7 +374,10 @@ class RentalRequestView(ui.View):
         embed = interaction.message.embeds[0]
         await interaction.response.edit_message(embed=embed, view=RentalRequestView(ctx=self.ctx, lang=self.lang, disabled=True, ticket_data=self.ticket_data))
 
-        self.database.add_user(self.floor, self.seat, self.user.id, ' '.join(self.players))
+        if JsonExtract.get_booking_mode() in SeatModes.single_seats():
+            self.database.set_seat_status(SeatStatus.UNAVAILABLE)
+
+        self.database.add_user(self.floor, self.seat, players={str(member.id): self.players})
 
         await member.add_roles(get(interaction.guild.roles, id=Language.lang_role_get(self.lang)))
 
@@ -410,8 +413,6 @@ class AddPlayersModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         channel = get(interaction.guild.channels, id=config.CONFIRMATION_CHANNEL_ID)
 
-        self.database.set_seat_status(self.floor, self.seat, SeatStatus.UNAVAILABLE)
-
         embed = discord.Embed(title="Заявка", description=f"{interaction.user.mention} подал заяву на бронирования места **{self.seat}**")
         embed.set_author(name=interaction.channel.name, url=interaction.channel.jump_url, icon_url=interaction.user.avatar.url)
         embed.add_field(name="Приглашенные игроки:", value=f"```{self.players.value}```", inline=False)
@@ -425,5 +426,8 @@ class AddPlayersModal(discord.ui.Modal):
         await interaction.channel.set_permissions(get(interaction.guild.members, id=interaction.user.id), read_messages=True, send_messages=True)
         await channel.send(content=f"<@{'> <@'.join(JsonExtract.get_user_id_list())}>")
         await channel.send(embed=embed, view=RentalRequestView(ctx=self.ctx, lang=self.lang, ticket_data=ticket_data))
+
+        if JsonExtract.get_booking_mode() in SeatModes.single_seats():
+            self.database.set_seat_status(SeatStatus.UNAVAILABLE)
 
         logger.info(f"Информация о тикете {interaction.user.name}: {ticket_data}")

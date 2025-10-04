@@ -6,7 +6,7 @@ from discord import ui, TextStyle, ButtonStyle
 from discord_bot import config
 from discord_bot.data.database import TicketBookingDatabase, SeatStatus
 from discord_bot.data.extract_json import JsonExtract
-from discord_bot.data.seat_data import SeatData
+from discord_bot.data.seat_data import SeatData, SeatModes
 from discord_bot.utils.logger import BotLogger, interaction_error_handler
 from discord_bot.utils.localization import Localization
 
@@ -30,6 +30,8 @@ class DatabaseMenuView(ui.LayoutView):
         self.end_idx = self.start_idx + self.rows_per_page
         self.page_data = self.data[self.start_idx:self.end_idx]
 
+        self.floor_available = self.database.floor_is_available(floor=self.floor)
+
         self._create_layout()
         self._add_pagination()
 
@@ -40,15 +42,22 @@ class DatabaseMenuView(ui.LayoutView):
         floor_select = ui.Select(
             placeholder="Выберите этаж...",
             options=[
-                discord.SelectOption(label=f"Этаж {x}", value=x, emoji="🔹", default=self.floor == x) for x in JsonExtract.get_seats()
+                discord.SelectOption(label=f"Этаж {floor}", value=floor, emoji="⛔" if not self.database.floor_is_available(floor=floor) else "🟩", default=self.floor == floor) for floor in JsonExtract.get_seats()
             ],
             custom_id="floor_select"
         )
         floor_select.callback = self._floor_select_callback
+
         floor_select_row.add_item(floor_select)
+
         container.add_item(floor_select_row)
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-        container.add_item(ui.TextDisplay(f"-# 📄 Страница {self.page + 1}/{self.total_pages}{'':\t^17}👥 Занятые места: {abs(self.database.avalibles_seats(floor=self.floor)[0] - self.database.avalibles_seats(floor=self.floor)[1])}/{self.database.avalibles_seats(floor=self.floor)[1]}"))
+
+        avalibles_seats = self.database.avalibles_seats(floor=self.floor)
+
+        container.add_item(
+            ui.TextDisplay(f"-# 📄 Страница: **{self.page + 1}/{self.total_pages}**{'':\t^5}{'🎫 Забронировано билетов:' + "**" + str(self.database.all_users_count(self.floor)) + "**" if JsonExtract.get_booking_mode() not in SeatModes.single_seats() else ''}{'':\t^5} ⛔ Закрытые места: **{abs(avalibles_seats[0] - avalibles_seats[1])}/{avalibles_seats[1]}**")
+        )
 
         self.add_item(container)
 
@@ -58,18 +67,11 @@ class DatabaseMenuView(ui.LayoutView):
     def _create_seat_row(self, seat: tuple) -> ui.Container:
         seat_container = ui.Container(accent_colour=int(SeatData(floor=self.floor).get_menu_color()))
 
-        user = f"<@{seat[1]}>" if seat[1] is not None else f"<@&{config.NONE_ROLE_ID}>"
+        seat_available = self.database.seat_is_available(self.floor, seat[0])
 
-        status = "✅"
+        status = "✅" if seat_available else "🟥"
 
-        avalible = self.database.is_avalible(self.floor, seat[0])
-
-        if not avalible:
-            if seat[1] is None:
-                status = "🟨"
-            else:
-                status = "🟥"
-
+        if len(seat[1]) != 0:
             action_button = ui.Button(
                 label="Редактировать",
                 style=ButtonStyle.gray,
@@ -84,7 +86,13 @@ class DatabaseMenuView(ui.LayoutView):
             )
             action_button.callback = self._add_button_callback
 
-        place_display = ui.TextDisplay(f">>> {status} | **{seat[0]}** | {user}\n-# Ники игроков: {seat[2]}")
+        users_list = [f"<@{key}> " for key, value in seat[1].items()]
+
+        users_info = ''.join(users_list[:2]) + f"{'...' if len(users_list) > 2 else ''}" if len(seat[1].items()) != 0 else f"Место никем не забронировано"
+
+        seat_info = f">>> {status} | **{seat[0]}**\n-# {users_info}"
+
+        place_display = ui.TextDisplay(seat_info)
 
         seat_container.add_item(ui.Section(place_display, accessory=action_button))
 
@@ -110,8 +118,17 @@ class DatabaseMenuView(ui.LayoutView):
         )
         next_button.callback = self._next_page_callback
 
+        reset_status_button = discord.ui.Button(
+            label="Закрыть бронь" if self.floor_available else "Открыть бронь",
+            emoji="⛔" if self.floor_available else "✅",
+            style=discord.ButtonStyle.red if self.floor_available else discord.ButtonStyle.green,
+            custom_id="reset_floor_status",
+        )
+        reset_status_button.callback = self._reset_status_callback
+
         pagination_row.add_item(prev_button)
         pagination_row.add_item(next_button)
+        pagination_row.add_item(reset_status_button)
 
         pagination_container.add_item(pagination_row)
         self.add_item(pagination_container)
@@ -140,67 +157,150 @@ class DatabaseMenuView(ui.LayoutView):
 
     @interaction_error_handler(logger)
     async def _edit_button_callback(self, interaction: discord.Interaction):
-        await interaction.response.send_message(view=EditSeat(message=interaction.message, floor=self.floor, seat=interaction.data.get("custom_id").split("_")[-1], page=self.page), ephemeral=True)
+        await interaction.response.send_message(view=EditSeat(message=interaction.message, floor=self.floor, seat=interaction.data.get("custom_id").split("_")[-1], main_page=self.page), delete_after=60)
 
     @interaction_error_handler(logger)
     async def _add_button_callback(self, interaction: discord.Interaction):
-        await interaction.response.send_message(view=AddUserView(message=interaction.message, floor=self.floor, seat=interaction.data.get("custom_id").split("_")[-1], page=self.page), ephemeral=True)
+        await interaction.response.send_message(view=AddUserView(main_message=interaction.message, floor=self.floor, seat=interaction.data.get("custom_id").split("_")[-1], main_page=self.page), ephemeral=True)
+
+    @interaction_error_handler(logger)
+    async def _reset_status_callback(self, interaction: discord.Interaction):
+        self.database.set_floor_status(floor=self.floor, status=SeatStatus.UNAVAILABLE if self.floor_available else SeatStatus.AVAILABLE)
+        await interaction.response.edit_message(view=DatabaseMenuView(floor=self.floor, page=self.page))
 
 
 class EditSeat(ui.LayoutView):
-    def __init__(self, message: discord.Message, floor: str, seat: str, page: int = 0):
+    def __init__(self, message: discord.Message, floor: str, seat: str, main_page: int = 0, edit_page: int = 0):
         super().__init__()
         self.message = message
 
         self.database = TicketBookingDatabase()
         self.floor = floor
         self.seat = seat
-        self.page = page
+        self.main_page = main_page
+        self.edit_page = edit_page
 
-        status = "✅"
+        self.rows_per_page = 5
 
-        avalible = self.database.is_avalible(self.floor, seat)
+        self.seat_data = list(self.database.get_seat(self.floor, self.seat)[1].items())
+        self.avalible = self.database.seat_is_available(self.floor, seat)
 
-        self.seat_data = self.database.get_seat(self.floor, self.seat)[0]
+        self.total_pages = (len(self.seat_data) + self.rows_per_page - 1) // self.rows_per_page if self.seat_data else 1
 
-        if not avalible:
-            if self.seat_data[1] is None:
-                status = "🟨"
-            else:
-                status = "🟥"
+        self.start_idx = self.edit_page * self.rows_per_page
+        self.end_idx = self.start_idx + self.rows_per_page
+        self.page_data = self.seat_data[self.start_idx:self.end_idx]
 
-        container = ui.Container()
-        container.add_item(ui.TextDisplay(f">>> {status} | **{seat}** | <@{self.seat_data[1]}>\n-# Ники игроков: {self.seat_data[2]}"))
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
+        self.container = ui.Container()
 
+        self._add_layout()
+        self._add_booking_list()
+
+        if len(self.seat_data) > self.rows_per_page:
+            self._add_pagination()
+
+        self._add_action_buttons()
+
+        self.add_item(self.container)
+
+    def _add_layout(self):
+        status = "✅" if self.avalible else "🟥"
+
+        reload_button = ui.Button(
+            emoji="🔁",
+            style=discord.ButtonStyle.gray,
+            custom_id="edit_reload"
+        )
+
+        reload_button.callback = self._reload_button_callback
+
+        self.container.add_item(ui.Section(ui.TextDisplay(f"# {status} | **{self.seat}**\n"), accessory=reload_button))
+
+        self.container.add_item(ui.TextDisplay(f"-# {f'📄 Страница: **{self.edit_page + 1}/{self.total_pages}**' if self.total_pages > 1 else ''}{'':\t^17} 🎫 Броней в секторе: **{len(self.database.get_seat(floor=self.floor, seat=self.seat)[1])}**"))
+
+        self.container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
+
+    def _add_booking_list(self):
+        for key, value in self.page_data:
+            cancel_reservetion_button = discord.ui.Button(
+                label="Отменить бронь",
+                emoji="🚩",
+                style=discord.ButtonStyle.gray,
+                custom_id=f"seat_edit_cancel_reservetion_{key}"
+            )
+            cancel_reservetion_button.callback = self._cancel_reservetion_callback
+
+            self.container.add_item(ui.Section(ui.TextDisplay(f">>> <@{key}>\n-# Ники игроков: {''.join(value)}\n"), accessory=cancel_reservetion_button))
+            self.container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+    def _add_pagination(self):
+        prev_button = ui.Button(
+            emoji="⬅️",
+            style=discord.ButtonStyle.secondary,
+            custom_id=f"prev_{self.seat}_{self.edit_page}",
+            disabled=self.edit_page == 0
+        )
+        prev_button.callback = self._prev_page_callback
+
+        next_button = ui.Button(
+            emoji="➡️",
+            style=discord.ButtonStyle.secondary,
+            custom_id=f"next_{self.seat}_{self.edit_page}",
+            disabled=self.edit_page == self.total_pages - 1
+        )
+        next_button.callback = self._next_page_callback
+
+        pagination_row = ui.ActionRow(prev_button, next_button)
+
+        self.container.add_item(pagination_row)
+
+    def _add_action_buttons(self):
         back_button = discord.ui.Button(
-            emoji="⬅",
+            emoji="❌",
             style=discord.ButtonStyle.gray,
             custom_id="seat_edit_back"
         )
         back_button.callback = self._back_callback
 
-        cancel_reservetion_button = discord.ui.Button(
-            label="Отменить бронь",
-            emoji="🚩",
-            style=discord.ButtonStyle.gray,
-            custom_id="seat_edit_cancel_reservetion"
-        )
-        cancel_reservetion_button.callback = self._cancel_reservetion_callback
-
         reset_status_button = discord.ui.Button(
-            label="Разблокировать место",
-            emoji="🔄",
+            label="Закрыть бронь" if self.avalible else "Открыть бронь",
+            emoji="⛔" if self.avalible else "✅",
             style=discord.ButtonStyle.gray,
             custom_id="seat_edit_reset_status",
-            disabled=self.seat_data[1] is not None and not avalible
         )
         reset_status_button.callback = self._reset_status_callback
 
-        action_row = ui.ActionRow(back_button, cancel_reservetion_button, reset_status_button)
+        action_button = ui.Button(
+            emoji="➕",
+            style=ButtonStyle.green,
+            custom_id=f"add_{self.seat}_edit",
+            disabled=not self.avalible
+        )
+        action_button.callback = self._add_button_callback
 
-        container.add_item(action_row)
-        self.add_item(container)
+        action_row = ui.ActionRow(back_button, reset_status_button, action_button)
+
+        self.container.add_item(action_row)
+
+    @interaction_error_handler(logger)
+    async def _reload_button_callback(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(view=EditSeat(message=self.message, floor=self.floor, seat=self.seat, main_page=self.main_page, edit_page=0))
+
+    @interaction_error_handler(logger)
+    async def _prev_page_callback(self, interaction: discord.Interaction):
+        if self.edit_page > 0:
+            new_view = EditSeat(self.message, floor=self.floor, seat=self.seat, main_page=self.main_page, edit_page=self.edit_page - 1)
+            await interaction.response.edit_message(view=new_view)
+        else:
+            await interaction.response.defer()
+
+    @interaction_error_handler(logger)
+    async def _next_page_callback(self, interaction: discord.Interaction):
+        if self.edit_page < self.total_pages - 1:
+            new_view = EditSeat(self.message, floor=self.floor, seat=self.seat, main_page=self.main_page, edit_page=self.edit_page + 1)
+            await interaction.response.edit_message(view=new_view)
+        else:
+            await interaction.response.defer()
 
     @interaction_error_handler(logger)
     async def _back_callback(self, interaction: discord.Interaction):
@@ -209,25 +309,30 @@ class EditSeat(ui.LayoutView):
 
     @interaction_error_handler(logger)
     async def _cancel_reservetion_callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        self.database.remove_user(self.floor, self.seat)
-        self.database.set_seat_status(self.floor, self.seat, SeatStatus.AVAILABLE)
-        await self.message.edit(view=DatabaseMenuView(floor=self.floor, page=self.page))
-        await interaction.delete_original_response()
+        self.database.remove_user(self.floor, self.seat, int(interaction.data.get("custom_id").split("_")[-1]))
+
+        await self.message.edit(view=DatabaseMenuView(floor=self.floor, page=self.main_page))
+        await interaction.response.edit_message(view=EditSeat(message=self.message, floor=self.floor, seat=self.seat, main_page=self.main_page, edit_page=self.edit_page if len(self.page_data) != 1 else self.edit_page - 1 if self.edit_page > 0 else 0))
 
     @interaction_error_handler(logger)
     async def _reset_status_callback(self, interaction: discord.Interaction):
-        self.database.set_seat_status(floor=self.floor, seat=self.seat, status=SeatStatus.AVAILABLE)
-        await self.message.edit(view=DatabaseMenuView(floor=self.floor, page=self.page))
-        await interaction.response.defer()
+        self.database.set_seat_status(floor=self.floor, seat=self.seat, status=SeatStatus.UNAVAILABLE if self.avalible else SeatStatus.AVAILABLE)
+        await self.message.edit(view=DatabaseMenuView(floor=self.floor, page=self.main_page))
+        await interaction.response.edit_message(view=EditSeat(message=self.message, floor=self.floor, seat=self.seat, main_page=self.main_page, edit_page=self.edit_page))
+
+    @interaction_error_handler(logger)
+    async def _add_button_callback(self, interaction: discord.Interaction):
+        await interaction.response.send_message(view=AddUserView(main_message=self.message, editmenu_message=interaction.message, floor=self.floor, seat=self.seat, main_page=self.main_page, edit_page=self.edit_page), ephemeral=True)
 
 
 class UserSelect(discord.ui.UserSelect):
-    def __init__(self, message: discord.Message, floor: str, seat: str, page: int):
-        self.message = message
+    def __init__(self, main_message: discord.Message, floor: str, seat: str, main_page: int, edit_page: int = 0, editmenu_message: discord.Message = None):
+        self.main_message = main_message
+        self.editmenu_message = editmenu_message
         self.floor = floor
         self.seat = seat
-        self.page = page
+        self.main_page = main_page
+        self.edit_page = edit_page
 
         super().__init__(
             custom_id='user_select',
@@ -236,50 +341,59 @@ class UserSelect(discord.ui.UserSelect):
 
     @interaction_error_handler(logger)
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(AddPlayersToDatabaseModal(message=self.message, floor=self.floor, seat=self.seat, user=self.values[0], page=self.page))
+        await interaction.response.send_modal(AddPlayersToDatabaseModal(main_message=self.main_message, editmenu_message=self.editmenu_message, floor=self.floor, seat=self.seat, user=self.values[0], main_page=self.main_page, edit_page=self.edit_page))
         await interaction.delete_original_response()
 
 
 class AddUserView(ui.LayoutView):
-    def __init__(self, message: discord.Message, floor: str, seat: str, page: int):
+    def __init__(self, main_message: discord.Message, floor: str, seat: str, main_page: int, edit_page: int = 0, editmenu_message: discord.Message = None):
         super().__init__()
 
         container = ui.Container()
 
         container.add_item(ui.TextDisplay(">>> **Бронирование места**"))
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
-        container.add_item(ui.ActionRow(UserSelect(message=message, floor=floor, seat=seat, page=page)))
+        container.add_item(ui.ActionRow(UserSelect(main_message=main_message, editmenu_message=editmenu_message, floor=floor, seat=seat, main_page=main_page, edit_page=edit_page)))
 
         self.add_item(container)
 
 
 class AddPlayersToDatabaseModal(discord.ui.Modal):
     players = discord.ui.TextInput(
-        label="modal_label.player_list",
-        placeholder="modal_placeholder.prompt",
+        label=Localization.translatable("modal_label.player_list", "ru"),
+        placeholder=Localization.translatable("modal_placeholder.prompt", "ru"),
         custom_id=f"players_list",
         style=TextStyle.long,
         max_length=100
     )
 
-    def __init__(self, *, timeout=None, floor: str, seat: str, page: int, user: discord.User, message: discord.Message):
+    def __init__(self, *, timeout=None, floor: str, seat: str, main_page: int = 0, edit_page: int = 0, user: discord.User, main_message: discord.Message, editmenu_message: discord.Message = None):
         super().__init__(title=Localization.translatable("modal_title.player_list", "ru"), timeout=timeout, custom_id="add_players_database")
 
-        self.players.label = Localization.translatable(self.players.label, "ru")
-        self.players.placeholder = Localization.translatable(self.players.placeholder, "ru")
-
-        self.message = message
         self.floor = floor
         self.seat = seat
-        self.page = page
+
         self.user = user
+
+        self.main_message = main_message
+        self.editmenu_message = editmenu_message
+
+        self.main_page = main_page
+        self.edit_page = edit_page
 
         self.database = TicketBookingDatabase()
 
     @interaction_error_handler(logger)
     async def on_submit(self, interaction: discord.Interaction):
-        logger.info(f"{interaction.user} отправил запрос {interaction.data.get('custom_id')}")
-        self.database.add_user(self.floor, self.seat, self.user.id, self.players.value)
-        self.database.set_seat_status(self.floor, self.seat, SeatStatus.UNAVAILABLE)
-        await self.message.edit(view=DatabaseMenuView(floor=self.floor, page=self.page))
-        await interaction.response.defer()
+        if not self.database.user_on_seat(floor=self.floor, seat=self.seat, user_id=self.user.id):
+            self.database.add_user(floor=self.floor, seat=self.seat, players={str(self.user.id): self.players.value.split(" ")})
+
+            if self.editmenu_message is not None:
+                await self.editmenu_message.edit(view=EditSeat(message=self.main_message, floor=self.floor, seat=self.seat, main_page=self.main_page, edit_page=self.edit_page))
+
+            await self.main_message.edit(view=DatabaseMenuView(floor=self.floor, page=self.main_page))
+
+            await interaction.response.defer()
+        else:
+            await interaction.response.send_message(embed=discord.Embed(description="У этого пользователя уже есть бронирование на это место", color=discord.Color.red()), ephemeral=True, delete_after=3)
+

@@ -1,5 +1,6 @@
 import enum
 import functools
+import json
 import sqlite3
 import threading
 from collections.abc import Callable
@@ -103,12 +104,17 @@ class TicketBookingDatabase:
     @database_retry()
     def create_tables(self):
         with self.database.get_cursor() as cursor:
-            for i in JsonExtract.get_seats():
+            for floor in JsonExtract.get_seats():
                 cursor.execute(f'''
-                CREATE TABLE IF NOT EXISTS floor_{i} (
-                    seat TEXT,
-                    user_id INTEGER,
+                CREATE TABLE IF NOT EXISTS floor_{floor} (
+                    seat TEXT UNIQUE, 
                     players TEXT,
+                    status TEXT DEFAULT 'available'
+                )
+                ''')
+            cursor.execute(f'''
+                CREATE TABLE IF NOT EXISTS available_floors (
+                    floor TEXT UNIQUE,
                     status TEXT DEFAULT 'available'
                 )
                 ''')
@@ -126,68 +132,91 @@ class TicketBookingDatabase:
         with self.database.get_cursor() as cursor:
             for floor in JsonExtract.get_seats():
                 cursor.execute(
-                    f'''SELECT seat, user_id FROM floor_{floor};'''
+                    f'''SELECT players FROM floor_{floor};'''
+                )
+                cursor.execute(
+                    f'''INSERT INTO available_floors (floor, status) VALUES (?, ?)''', (floor, SeatStatus.AVAILABLE.value)
                 )
                 if cursor.fetchone() is None:
                     data = SeatData(floor=floor)
                     for seat in data.get_seats():
                         cursor.execute(
-                             f'''INSERT INTO floor_{floor} (seat, user_id) VALUES (?, ?)''', (seat, None)
+                             f'''INSERT INTO floor_{floor} (seat, players) VALUES (?, ?)''', (seat, json.dumps({}))
                          )
 
     @database_retry()
     def get_seat_list(self, floor: str) -> list:
         with self.database.get_cursor() as cursor:
             cursor.execute(f'''
-                SELECT seat, user_id, players, status
+                SELECT seat, players, status
                 FROM floor_{floor}
             ''')
-            return cursor.fetchall()
+            return [(x[0], json.loads(x[1]), x[2]) for x in cursor.fetchall()]
 
     @database_retry()
     def get_seat(self, floor: str, seat: str) -> list:
         with self.database.get_cursor() as cursor:
-            cursor.execute(f'''
-                SELECT seat, user_id, players, status
-                FROM floor_{floor} WHERE seat = ?
-            ''', (seat,))
-            return cursor.fetchall()
+            cursor.execute(f'''SELECT seat, players, status FROM floor_{floor} WHERE seat = ?''', (seat,))
+            info = cursor.fetchall()[0]
+            return [info[0], json.loads(info[1]), info[2]]
+
+    def all_users_count(self, floor: str) -> int:
+        all_seats = self.get_seat_list(floor=floor)
+        user_list = []
+        for seat in all_seats:
+            user_list.append(len(seat[1]))
+
+        return sum(user_list)
 
     @database_retry()
-    def add_user(self, floor: str, seat: str, user_id: int, players: str):
-        with self.database.get_cursor() as cursor:
-            cursor.execute(f'SELECT user_id FROM floor_{floor} WHERE seat = ?', (seat,))
+    def add_user(self, floor: str, seat: str, players: dict):
 
-            if cursor.fetchall()[0][0] is None:
-                cursor.execute(f'UPDATE floor_{floor} SET user_id = ? WHERE seat = ?', (user_id, seat))
-                cursor.execute(f'UPDATE floor_{floor} SET players = ? WHERE seat = ?', (players, seat))
-            else:
-                raise NotEmptySeatError()
-
-    @database_retry()
-    def remove_user(self, floor: str, seat: str, user_id: int = None):
         with self.database.get_cursor() as cursor:
-            if user_id is None:
-                cursor.execute(f'UPDATE floor_{floor} SET user_id = ? WHERE seat = ?', (None, seat))
-                cursor.execute(f'UPDATE floor_{floor} SET players = ? WHERE seat = ?', (None, seat))
-            else:
-                cursor.execute(f'DELETE FROM floor_{floor} WHERE user_id = ?', (user_id,))
+            cursor.execute(f'SELECT players FROM floor_{floor} WHERE seat = ?', (seat,))
+
+            players_dict = json.loads(cursor.fetchall()[0][0])
+
+            players_dict[list(players.keys())[0]] = list(players.values())[0]
+            cursor.execute(f'UPDATE floor_{floor} SET players = ? WHERE seat = ?', (json.dumps(players_dict), seat))
 
     @database_retry()
-    def set_seat_status(self, floor: str, seat: str, status: SeatStatus, user_id: int = None):
+    def remove_user(self, floor: str, seat: str, user_id: int):
         with self.database.get_cursor() as cursor:
-            if user_id is not None:
-                cursor.execute(f'UPDATE floor_{floor} SET status = ? WHERE user_id = ?', (status.value, user_id))
-            else:
-                cursor.execute(f'UPDATE floor_{floor} SET status = ? WHERE seat = ?', (status.value, seat))
+            cursor.execute(f'SELECT players FROM floor_{floor} WHERE seat = ?', (seat,))
+            players_dict = json.loads(cursor.fetchall()[0][0])
+            players_dict.pop(str(user_id))
+
+            cursor.execute(f'UPDATE floor_{floor} SET players = ? WHERE seat = ?', (json.dumps(players_dict), seat))
 
     @database_retry()
-    def is_avalible(self, floor: str, seat: str, user_id: int = None):
+    def user_on_seat(self, floor: str, seat: str, user_id: int):
         with self.database.get_cursor() as cursor:
-            if user_id is not None:
-                cursor.execute(f'SELECT status FROM floor_{floor} WHERE user_id = ?', (user_id,))
-            else:
-                cursor.execute(f'SELECT status FROM floor_{floor} WHERE seat = ?', (seat,))
+            cursor.execute(f'SELECT players FROM floor_{floor} WHERE seat = ?', (seat,))
+            players_dict = json.loads(cursor.fetchall()[0][0])
+
+            return str(user_id) in players_dict.keys()
+
+    @database_retry()
+    def set_seat_status(self, floor: str, seat: str, status: SeatStatus):
+        with self.database.get_cursor() as cursor:
+            cursor.execute(f'UPDATE floor_{floor} SET status = ? WHERE seat = ?', (status.value, seat))
+
+    @database_retry()
+    def set_floor_status(self, floor: str, status: SeatStatus):
+        with self.database.get_cursor() as cursor:
+            cursor.execute(f'UPDATE available_floors SET status = ? WHERE floor = ?', (status.value, floor))
+
+    @database_retry()
+    def seat_is_available(self, floor: str, seat: str):
+        with self.database.get_cursor() as cursor:
+            cursor.execute(f'SELECT status FROM floor_{floor} WHERE seat = ?', (seat,))
+
+            return cursor.fetchall()[0][0] == SeatStatus.AVAILABLE.value
+
+    @database_retry()
+    def floor_is_available(self, floor: str):
+        with self.database.get_cursor() as cursor:
+            cursor.execute(f'SELECT status FROM available_floors WHERE floor = ?', (floor,))
 
             return cursor.fetchall()[0][0] == SeatStatus.AVAILABLE.value
 
@@ -196,11 +225,11 @@ class TicketBookingDatabase:
         with self.database.get_cursor() as cursor:
             for floor in JsonExtract.get_seats():
                 cursor.execute(f'''
-                            SELECT seat, user_id, players, status
+                            SELECT seat, players, status
                             FROM floor_{floor}
                         ''')
                 for seat in cursor.fetchall():
-                    if user.id in seat:
+                    if str(user.id) in json.loads(seat[1]).keys():
                         return True
             return False
 
@@ -209,7 +238,9 @@ class TicketBookingDatabase:
         availibles = []
 
         for seat in all_seats:
-            if self.is_avalible(floor=floor, seat=seat[0]):
+            if self.seat_is_available(floor=floor, seat=seat[0]):
                 availibles.append(seat)
 
         return len(availibles), len(all_seats)
+
+

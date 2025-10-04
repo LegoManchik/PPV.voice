@@ -24,6 +24,11 @@ class JsonExtract:
             return json.load(file).get("menu")
 
     @classmethod
+    def get_booking_mode(cls) -> str:
+        with open("data/seats.json", "r+", encoding="utf-8") as file:
+            return json.load(file).get("mode")
+
+    @classmethod
     def get_random_number(cls) -> int:
         with open("data/tickets.json", "r+", encoding="utf-8") as file:
             data = json.load(file)
