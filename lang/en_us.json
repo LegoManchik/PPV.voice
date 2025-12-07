@@ -1,0 +1,42 @@
+{
+  "button.book_ticket": "Book Ticket",
+  "button.yes": "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀Yes⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+  "button.close_ticket": "Close Ticket",
+  "modal_title.player_list": "Add companions",
+  "modal_label.player_list": "Player List",
+  "modal_placeholder.prompt": "Write your nickname and the nicknames of those you want to name, separated by a space.",
+
+  "layout.ticket_booking.title": "In this channel you can book tickets for **\"Hit Me Hard And Soft : The Tour\" by Billie Eilish**",
+  "layout.ticket_booking.description": "The advantages of the reservation are its own choice of location, beautiful views and proximity to the artist. The server can be accessed from both a licensed and a pirated version of the game. **The server will be closed to players who have not booked a place**.\n\nThere are 3 sitting areas + 2 standing areas in the hall of our arena. **A, B, C and FANZONE**. In the standing area, you can choose the side you want to stand on relative to the stage. There is **no passage** between the two standing areas . **The stage  is located in the middle of the hall**, which creates a **360° concert**. You can see the map of places below. To book a seat, click on the button below ↓\n\n> Players who have not booked a ticket will not be able to access the server. The booking feature allows you to choose the best place for you with a great view of the stage. Minecraft nicknames of 3 people can be specified in one ticket. All the players you specify in your ticket must be on our Discord server. All information about the server version, server IP, and game build is received by the ticket holder in a special channel. You will need to provide all the necessary information to attend the event to your invited guests.",
+  "layout.ticket_booking.image": "https://media.discordapp.net/attachments/1365977478157303839/1446162623434326097/Base_Tickets.png",
+
+  "layout.seat.tickets_limit": "Tickets left",
+
+  "layout.booking_confirm.description": "Are you sure you want to reserve a seat?",
+
+  "embed.user_in_seat": {
+    "description": "**You have already booked a place**"
+  },
+
+  "embed.moderators_notification": {
+    "title": "Your booking request has been sent!",
+    "description": "Moderation will contact you soon."
+  },
+
+  "embed.seat_reserved": {
+    "title": "",
+    "description": "You will be able to get information on IP and Version closer to the event.",
+    "author": {
+      "name": "Your seat is reserved!",
+      "icon": "https://media.discordapp.net/attachments/1365977478157303839/1369010912329076757/77a3c6558ab4618f6d27f99538db1c.png"
+    }
+  },
+  "embed.applivation_rejected": {
+    "title": "",
+    "description": "The request for seat **{0}** was rejected.",
+    "author": {
+      "name": "Your application has been rejected!",
+      "icon": "https://media.discordapp.net/attachments/1365977478157303839/1369011028821803018/10f6db19554cdf97c72dd869ab7929.png"
+    }
+  }
+}
