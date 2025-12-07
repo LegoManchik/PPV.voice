@@ -3,6 +3,8 @@ config.py
 audio_files
 logs
 venv
+data/seat_gen.py
+data/seats_billie_eilish.json
 data/tickets.db
 data/tickets.json
 data/ping_users.json
