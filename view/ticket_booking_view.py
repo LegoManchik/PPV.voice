@@ -13,7 +13,7 @@ from discord.utils import get
 
 import config
 from data.database import TicketBookingDatabase, SeatStatus
-from data.extract_json import JsonExtract
+from data.json_helper import JsonHelper
 from data.seat_data import SeatData, SeatModes, BookingStatus
 from utils.decorators import is_moderator
 from utils.localization import Localization, LangContext, Language
@@ -39,7 +39,12 @@ class BookingTicketButton(ui.Button):
     @interaction_error_handler(logger)
     async def callback(self, interaction: discord.Interaction):
         channel = await self.ticket.create_ticket(lang=self.lang, user=interaction.user, guild=interaction.message.guild)
-        await channel.send(view=ChoiseFloorView(ctx=self.ctx, lang=self.lang))
+        if JsonHelper.is_single_floor():
+            print("s")
+            await channel.send(view=ChoiseSeatView(ctx=self.ctx, lang=self.lang, floor=JsonHelper.get_floors()[0]))
+        else:
+            await channel.send(view=ChoiseFloorView(ctx=self.ctx, lang=self.lang))
+
         await interaction.response.send_message(channel.mention, ephemeral=True)
 
 
@@ -55,7 +60,7 @@ class StartBookingButton(ui.Button):
 
     @interaction_error_handler(logger)
     async def callback(self, interaction: discord.Interaction):
-        if not self.database.user_in_seats(interaction.user) or interaction.user.id in [int(id_) for id_ in JsonExtract.get_user_id_list()]:
+        if not self.database.user_in_seats(interaction.user) or interaction.user.id in [int(id_) for id_ in JsonHelper.get_user_id_list()]:
             ctx = await LangContext.get_context_from_interaction(bot=self.bot, interaction=interaction)
 
             await interaction.response.send_message(view=ConfirmationBookingView(ctx=ctx, lang=self.lang), ephemeral=True, delete_after=5)
@@ -115,15 +120,15 @@ class ChoiseFloorView(ui.LayoutView):
         super().__init__(timeout=None)
 
         container = ui.Container()
-        container.add_item(ui.Section(ui.TextDisplay(f"# {JsonExtract.get_floor_menu().get('title').get(lang)}"), accessory=ReloadButton(ctx=ctx, lang=lang)))
+        container.add_item(ui.Section(ui.TextDisplay(f"# {JsonHelper.get_floor_menu().get('title').get(lang)}"), accessory=ReloadButton(ctx=ctx, lang=lang)))
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
-        container.add_item(ui.MediaGallery(MediaGalleryItem(media=JsonExtract.get_floor_menu().get('image').get(lang))))
+        container.add_item(ui.MediaGallery(MediaGalleryItem(media=JsonHelper.get_floor_menu().get('image').get(lang))))
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
 
         current_row = ui.ActionRow()
         row_counter = 1
 
-        for floor in JsonExtract.get_seats():
+        for floor in JsonHelper.get_seats():
             if floor != "VIP":
                 if len(current_row.children) >= 5:
                     container.add_item(current_row)
@@ -416,7 +421,7 @@ class RentalRequestView(ui.View):
         embed = interaction.message.embeds[0]
         await interaction.response.edit_message(embed=embed, view=RentalRequestView(ctx=self.ctx, lang=self.lang, disabled=True, ticket_data=self.ticket_data))
 
-        if JsonExtract.get_booking_mode() in SeatModes.single_seats():
+        if JsonHelper.get_booking_mode() in SeatModes.single_seats():
             self.database.set_seat_status(SeatStatus.UNAVAILABLE)
 
         await member.add_roles(get(interaction.guild.roles, id=Language.lang_role_get(self.lang)))
@@ -469,10 +474,10 @@ class AddPlayersModal(discord.ui.Modal):
         self.database.add_user(self.floor, self.seat, players={str(interaction.user.id): ticket_data.get("players")}, status=BookingStatus.NOT_CONFIRMED)
 
         await interaction.channel.set_permissions(get(interaction.guild.members, id=interaction.user.id), read_messages=True, send_messages=True)
-        await channel.send(content=f"<@{'> <@'.join(JsonExtract.get_user_id_list())}>")
+        await channel.send(content=f"<@{'> <@'.join(JsonHelper.get_user_id_list())}>")
         await channel.send(embed=embed, view=RentalRequestView(ctx=self.ctx, lang=self.lang, ticket_data=ticket_data))
 
-        if JsonExtract.get_booking_mode() in SeatModes.single_seats():
+        if JsonHelper.get_booking_mode() in SeatModes.single_seats():
             self.database.set_seat_status(SeatStatus.UNAVAILABLE)
 
         logger.info(f"Информация о тикете {interaction.user.name}: {ticket_data}")

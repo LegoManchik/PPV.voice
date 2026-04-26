@@ -23,6 +23,12 @@ class Debug(commands.Cog):
             await channel.delete()
             await asyncio.sleep(2)
 
+    @commands.hybrid_command(name="setup_database")
+    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
+    async def setup_database(self, ctx: commands.Context):
+        self.db.generate_seats()
+        await ctx.send("Setup")
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Debug(bot))

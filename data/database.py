@@ -8,7 +8,7 @@ from contextlib import contextmanager
 
 import discord
 
-from data.extract_json import JsonExtract
+from data.json_helper import JsonHelper
 from data.seat_data import SeatData, BookingStatus
 from utils.logger import BotLogger
 
@@ -104,7 +104,7 @@ class TicketBookingDatabase:
     @database_retry()
     def create_tables(self):
         with self.database.get_cursor() as cursor:
-            for floor in JsonExtract.get_seats():
+            for floor in JsonHelper.get_seats():
                 cursor.execute(f'''
                 CREATE TABLE IF NOT EXISTS floor_{floor} (
                     seat TEXT UNIQUE, 
@@ -130,7 +130,7 @@ class TicketBookingDatabase:
     @database_retry()
     def generate_seats(self):
         with self.database.get_cursor() as cursor:
-            for floor in JsonExtract.get_seats():
+            for floor in JsonHelper.get_seats():
                 cursor.execute(
                     f'''SELECT players FROM floor_{floor};'''
                 )
@@ -263,7 +263,7 @@ class TicketBookingDatabase:
     @database_retry()
     def user_in_seats(self, user: discord.User) -> bool:
         with self.database.get_cursor() as cursor:
-            for floor in JsonExtract.get_seats():
+            for floor in JsonHelper.get_seats():
                 cursor.execute(f'''
                             SELECT seat, players, status
                             FROM floor_{floor}
@@ -283,5 +283,4 @@ class TicketBookingDatabase:
                 availibles.append(seat)
 
         return len(availibles), len(all_seats)
-
 

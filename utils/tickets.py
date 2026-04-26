@@ -6,7 +6,7 @@ from discord.ext.commands import Context
 
 import config
 from data.database import TicketBookingDatabase
-from data.extract_json import JsonExtract
+from data.json_helper import JsonHelper
 
 
 class TicketSystem:
@@ -16,8 +16,8 @@ class TicketSystem:
         self.database = TicketBookingDatabase()
 
     async def create_ticket(self, lang: str, user: discord.Member, guild: discord.Guild) -> discord.TextChannel:
-        ticket_number = JsonExtract.get_random_number()
-        JsonExtract.add_number(ticket_number)
+        ticket_number = JsonHelper.get_random_number()
+        JsonHelper.add_number(ticket_number)
 
         role = get(guild.roles, id=config.SUPERVISOR_ROLE_ID)
 

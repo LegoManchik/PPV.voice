@@ -5,9 +5,9 @@ from discord.utils import get
 
 import config
 from data.database import TicketBookingDatabase
+from data.json_helper import JsonHelper
 from utils.localization import Localization, Language
 from utils.logger import BotLogger
-from view.booking_settings_view import BookingSettings
 from view.ticket_booking_view import StartBookingView, SEAT_RESERVED_EMBED, StartVIPBookingView
 
 
@@ -42,16 +42,21 @@ class TicketBooking(commands.Cog):
 
         await ctx.interaction.response.defer()
 
-    @commands.hybrid_command(name="booking_settings")
+    @commands.hybrid_command(name="add_ping_user", description="Добавить пользователь я в пинг, при заявках")
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
-    async def booking_settings(self, ctx: commands.Context):
-        await ctx.interaction.response.send_message(view=BookingSettings(ctx=ctx), file=discord.File(fp="data/seats.json", filename="seats.json"))
+    async def add_ping_user(self, ctx: commands.Context, user: discord.User):
+        if JsonHelper.add_user_in_list(user.id):
+            await ctx.send(embed=discord.Embed(description=f"✅ Пользователь {user.mention} теперь будет пинговаться при поступлении новых заявок на бронь"))
+        else:
+            await ctx.send(embed=discord.Embed(description=f"❌ Пользователь {user.mention} уже есть в списке"))
 
-    @commands.hybrid_command(name="setup_database")
+    @commands.hybrid_command(name="remove_ping_user", description="Убрать пользователя из пингов, при заявках")
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
-    async def setup_database(self, ctx: commands.Context):
-        self.db.generate_seats()
-        await ctx.send("Setup")
+    async def remove_ping_user(self, ctx: commands.Context, user: discord.User):
+        if JsonHelper.remove_user_in_list(user.id):
+            await ctx.send(embed=discord.Embed(description=f"✅ Пользователь {user.mention} теперь **НЕ** будет пинговаться при поступлении новых заявок на бронь"))
+        else:
+            await ctx.send(embed=discord.Embed(description=f"❌ Пользователя {user.mention} нет в списке"))
 
 
 async def setup(bot: commands.Bot):

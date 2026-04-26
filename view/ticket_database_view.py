@@ -5,7 +5,7 @@ from discord import ui, TextStyle, ButtonStyle
 
 import config
 from data.database import TicketBookingDatabase, SeatStatus
-from data.extract_json import JsonExtract
+from data.json_helper import JsonHelper
 from data.seat_data import SeatData, SeatModes, BookingStatus
 from utils.logger import BotLogger, interaction_error_handler
 from utils.localization import Localization
@@ -15,7 +15,7 @@ logger = BotLogger().get_file_logger(__name__)
 
 
 class DatabaseMenuView(ui.LayoutView):
-    def __init__(self, floor: str = list(JsonExtract.get_seats().keys())[0], page: int = 0, search: bool = False):
+    def __init__(self, floor: str = list(JsonHelper.get_seats().keys())[0], page: int = 0, search: bool = False):
         super().__init__()
         self.database = TicketBookingDatabase()
         self.floor = floor
@@ -42,7 +42,7 @@ class DatabaseMenuView(ui.LayoutView):
         floor_select = ui.Select(
             placeholder="Выберите этаж...",
             options=[
-                discord.SelectOption(label=f"Этаж {floor}", value=floor, emoji="⛔" if not self.database.floor_is_available(floor=floor) else "🟩", default=self.floor == floor) for floor in JsonExtract.get_seats()
+                discord.SelectOption(label=f"Этаж {floor}", value=floor, emoji="⛔" if not self.database.floor_is_available(floor=floor) else "🟩", default=self.floor == floor) for floor in JsonHelper.get_seats()
             ],
             custom_id="floor_select"
         )
@@ -56,7 +56,7 @@ class DatabaseMenuView(ui.LayoutView):
         avalibles_seats = self.database.avalibles_seats(floor=self.floor)
 
         container.add_item(
-            ui.TextDisplay(f"-# 📄 Страница: **{self.page + 1}/{self.total_pages}**{'':\t^5}{'🎫 Забронировано билетов:' + "**" + str(self.database.all_users_count(self.floor)) + "**" if JsonExtract.get_booking_mode() not in SeatModes.single_seats() else ''}{'':\t^5} ⛔ Закрытые места: **{abs(avalibles_seats[0] - avalibles_seats[1])}/{avalibles_seats[1]}**")
+            ui.TextDisplay(f"-# 📄 Страница: **{self.page + 1}/{self.total_pages}**{'':\t^5}{'🎫 Забронировано билетов:' + "**" + str(self.database.all_users_count(self.floor)) + "**" if JsonHelper.get_booking_mode() not in SeatModes.single_seats() else ''}{'':\t^5} ⛔ Закрытые места: **{abs(avalibles_seats[0] - avalibles_seats[1])}/{avalibles_seats[1]}**")
         )
 
         self.add_item(container)
@@ -364,6 +364,7 @@ class PlayersList(discord.ui.LayoutView):
         self.container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
         self.container.add_item(ui.TextDisplay(f"{''.join([f'```{player}```\n' for player in self.players_list])}"))
         self.container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
+
 
 class UserSelect(discord.ui.UserSelect):
     def __init__(self, main_message: discord.Message, floor: str, seat: str, main_page: int, edit_page: int = 0, editmenu_message: discord.Message = None):

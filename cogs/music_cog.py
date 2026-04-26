@@ -22,6 +22,9 @@ class Music(commands.Cog):
         self.logger = BotLogger().get_discord_cog_logger(self.__cog_name__)
         self.voice_states = {}
 
+
+
+
     def get_voice_state(self, ctx: commands.Context):
         state = self.voice_states.get(ctx.guild.id)
         if not state:
@@ -51,19 +54,23 @@ class Music(commands.Cog):
     async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
         await ctx.send('An error occurred: {}'.format(str(error)))
 
-    @commands.hybrid_command(name='join', invoke_without_subcommand=True)
+    @commands.hybrid_command(name='join')
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _join(self, ctx: commands.Context):
+        if not ctx.author.voice:
+            await ctx.send(embed=discord.Embed(description="Вы не в голосовом канале!"), ephemeral=True)
+            return
 
         destination = ctx.author.voice.channel
-        if ctx.voice_state.voice:
+
+        if ctx.voice_state.voice and ctx.voice_state.voice.is_connected():
             await ctx.voice_state.voice.move_to(destination)
             return
+
         try:
-            ctx.voice_state.voice = await destination.connect()
-        except discord.errors.ClientException:
-            await ctx.voice_state.stop()
-            await ctx.invoke(self._join)
+            ctx.voice_state.voice = await destination.connect(timeout=20.0, reconnect=True)
+        except Exception as e:
+            self.logger.error(f"Ошибка подключения: {e}")
 
     @commands.hybrid_command(name='summon')
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
@@ -222,7 +229,7 @@ class Music(commands.Cog):
             except YTDLError as e:
                 await ctx.send(embed=discord.Embed(
                     description='An error occurred while processing this request: {}'.format(str(e)),
-                    color=discord.Color.red), ephemeral=True)
+                    color=discord.Color.red()), ephemeral=True)
             else:
                 song = Song(source)
 
@@ -251,9 +258,9 @@ class Music(commands.Cog):
         if not ctx.author.voice or not ctx.author.voice.channel:
             raise commands.CommandError('You are not connected to any voice channel.')
 
-        if ctx.voice_client:
+        if ctx.voice_client and ctx.voice_client.is_connected():
             if ctx.voice_client.channel != ctx.author.voice.channel:
-                raise commands.CommandError('Bot is already in a voice channel.')
+                await ctx.voice_client.move_to(ctx.author.voice.channel)
 
     @commands.hybrid_command(name='menu')
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
