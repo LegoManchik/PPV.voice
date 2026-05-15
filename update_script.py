@@ -12,6 +12,7 @@ def main():
         repo_owner="LegoManchik",
         repo_name="PPV.voice",
         current_version=config.BOT_VERSION,
+        branch="1.0",
         blacklist=open("blacklist.txt").read().split('\n')
     )
 
