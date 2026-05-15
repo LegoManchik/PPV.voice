@@ -1,19 +1,17 @@
 import math
 import os
+from pathlib import Path
 
+import discord
 from discord import app_commands
+from discord.ext import commands
 
-import config  # type: ignore
+import config
+
 from utils.logger import BotLogger
-
 from utils.sort_utils import first_number
-from utils.ytdl_source import YTDLSource, YTDLError  # type: ignore
-from utils.voice_utils import VoiceState, VoiceError  # type: ignore
-from utils.song_embed import Song  # type: ignore
-
-from view.player_menu import *  # type: ignore
-
-from view.player_menu import Buttons
+from utils.voice_utils import VoiceState, VoiceError
+from view.player_menu_view import MusicPlayer, ControlButtons, MusicControlView, float_to_present, PlayerContext
 
 
 class Music(commands.Cog):
@@ -21,9 +19,6 @@ class Music(commands.Cog):
         self.bot = bot
         self.logger = BotLogger().get_discord_cog_logger(self.__cog_name__)
         self.voice_states = {}
-
-
-
 
     def get_voice_state(self, ctx: commands.Context):
         state = self.voice_states.get(ctx.guild.id)
@@ -36,10 +31,6 @@ class Music(commands.Cog):
     def get_menu_state(self, ctx: commands.Context):
         state = PlayerContext(ctx)
         return state
-
-    def cog_unload(self):
-        for state in self.voice_states.values():
-            self.bot.loop.create_task(state.stop())
 
     def cog_check(self, ctx: commands.Context):
         if not ctx.guild:
@@ -57,11 +48,11 @@ class Music(commands.Cog):
     @commands.hybrid_command(name='join')
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _join(self, ctx: commands.Context):
-        if not ctx.author.voice:
-            await ctx.send(embed=discord.Embed(description="Вы не в голосовом канале!"), ephemeral=True)
-            return
-
         destination = ctx.author.voice.channel
+
+        if not ctx.author.voice:
+            await ctx.send(embed=discord.Embed(description="Вы не в голосовом канале!", color=config.COLOR), ephemeral=True)
+            return
 
         if ctx.voice_state.voice and ctx.voice_state.voice.is_connected():
             await ctx.voice_state.voice.move_to(destination)
@@ -88,11 +79,9 @@ class Music(commands.Cog):
     @commands.hybrid_command(name='leave', aliases=['disconnect'])
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _leave(self, ctx: commands.Context):
-
         if not ctx.voice_state.voice:
             return await ctx.send(
-                embed=discord.Embed(description='Бот не подключен ни к одному голосовому каналу', color=config.COLOR),
-                ephemeral=True)
+                embed=discord.Embed(description='Бот не подключен ни к одному голосовому каналу', color=config.COLOR), ephemeral=True)
 
         await ctx.voice_state.stop()
         del self.voice_states[ctx.guild.id]
@@ -100,141 +89,40 @@ class Music(commands.Cog):
     @commands.hybrid_command(name='volume')
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _volume(self, ctx: commands.Context, *, volume: int):
-
         if not ctx.voice_state.is_playing:
-            return await ctx.send(embed=discord.Embed(description='Сейчас ничего не играет', color=config.COLOR),
-                                  ephemeral=True)
+            return await ctx.send(embed=discord.Embed(description='Сейчас ничего не играет', color=config.COLOR), ephemeral=True)
 
         if 0 > volume < 100:
             return await ctx.send(
-                embed=discord.Embed(description='Громкость должна быть от 0 до 100', color=config.COLOR),
-                ephemeral=True)
+                embed=discord.Embed(description='Громкость должна быть от 0 до 100', color=config.COLOR), ephemeral=True)
 
         ctx.voice_state.voice.source.volume = volume / 100
         await ctx.send(
-            embed=discord.Embed(description='Volume of the player set to {}%'.format(volume), color=config.COLOR),
-            ephemeral=True)
-
-    @commands.hybrid_command(name='now', aliases=['current', 'playing'])
-    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
-    async def _now(self, ctx: commands.Context):
-        await ctx.send(embed=ctx.voice_state.current.create_embed())
+            embed=discord.Embed(description='Громкость: {}%'.format(volume), color=config.COLOR), ephemeral=True)
 
     @commands.hybrid_command(name='pause')
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _pause(self, ctx: commands.Context):
-
         if ctx.voice_state.is_playing and ctx.voice_state.voice.is_playing():
             ctx.voice_state.voice.pause()
+
+        await ctx.interaction.response.defer()
 
     @commands.hybrid_command(name='resume')
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _resume(self, ctx: commands.Context):
-
         if ctx.voice_state.is_playing and ctx.voice_state.voice.is_paused():
             ctx.voice_state.voice.resume()
+
+        await ctx.interaction.response.defer()
 
     @commands.hybrid_command(name='stop')
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _stop(self, ctx: commands.Context):
-
-        ctx.voice_state.songs.clear()
-
         if ctx.voice_state.is_playing:
             ctx.voice_state.voice.stop()
 
-    @commands.hybrid_command(name='skip')
-    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
-    async def _skip(self, ctx: commands.Context):
-
-        if not ctx.voice_state.is_playing:
-            return await ctx.send('Not playing any music right now...')
-
-        voter = ctx.message.author
-        if voter == ctx.voice_state.current.requester:
-            await ctx.message.add_reaction('⏭')
-            ctx.voice_state.skip()
-
-        elif voter.id not in ctx.voice_state.skip_votes:
-            ctx.voice_state.skip_votes.add(voter.id)
-            total_votes = len(ctx.voice_state.skip_votes)
-
-            if total_votes >= 3:
-                await ctx.message.add_reaction('⏭')
-                ctx.voice_state.skip()
-            else:
-                await ctx.send('Skip vote added, currently at **{}/3**'.format(total_votes))
-
-        else:
-            await ctx.send('You have already voted to skip this song.')
-
-    @commands.hybrid_command(name='queue')
-    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
-    async def _queue(self, ctx: commands.Context, *, page: int = 1):
-        if len(ctx.voice_state.songs) == 0:
-            return await ctx.send('Empty queue.')
-
-        items_per_page = 10
-        pages = math.ceil(len(ctx.voice_state.songs) / items_per_page)
-
-        start = (page - 1) * items_per_page
-        end = start + items_per_page
-
-        queue = ''
-        for i, song in enumerate(ctx.voice_state.songs[start:end], start=start):
-            queue += '`{0}.` [**{1.source.title}**]({1.source.url})\n'.format(i + 1, song)
-
-        embed = (discord.Embed(description='**{} tracks:**\n\n{}'.format(len(ctx.voice_state.songs), queue))
-                 .set_footer(text='Viewing main_page {}/{}'.format(page, pages)))
-        await ctx.send(embed=embed)
-
-    @commands.command(name='shuffle')
-    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
-    async def _shuffle(self, ctx: commands.Context):
-
-        if len(ctx.voice_state.songs) == 0:
-            return await ctx.send('Empty queue.')
-
-        ctx.voice_state.songs.shuffle()
-
-    @commands.hybrid_command(name='remove')
-    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
-    async def _remove(self, ctx: commands.Context, index: int):
-
-        if len(ctx.voice_state.songs) == 0:
-            return await ctx.send('Empty queue.')
-
-        ctx.voice_state.songs.remove(index - 1)
-
-    @commands.command(name='loop')
-    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
-    async def _loop(self, ctx: commands.Context):
-
-        if not ctx.voice_state.is_playing:
-            return await ctx.send('Nothing being played at the moment.')
-
-        ctx.voice_state.loop = not ctx.voice_state.loop
-
-    @commands.hybrid_command(name='play')
-    @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
-    async def _play(self, ctx: commands.Context, *, search: str):
-
-        if ctx.voice_state.voice is None:
-            await ctx.invoke(self._join)
-
-        async with ctx.typing():
-            try:
-                source = await YTDLSource.create_source(ctx, search, loop=self.bot.loop)
-
-            except YTDLError as e:
-                await ctx.send(embed=discord.Embed(
-                    description='An error occurred while processing this request: {}'.format(str(e)),
-                    color=discord.Color.red()), ephemeral=True)
-            else:
-                song = Song(source)
-
-                await ctx.voice_state.songs.put(song)
-                await ctx.send(embed=discord.Embed(description='Добавлено: {}'.format(str(source)), color=config.COLOR))
+        await ctx.interaction.response.defer()
 
     @commands.hybrid_command(name='play_file')
     @app_commands.describe(
@@ -242,18 +130,16 @@ class Music(commands.Cog):
     )
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def play_file(self, ctx: commands.Context, *, filename: str):
-
         if not ctx.voice_state.voice:
             await ctx.invoke(self._join)
 
         async with ctx.typing():
-            await ctx.voice_state._play_file(discord.FFmpegPCMAudio(f'audio_files/{filename}'))
+            await ctx.voice_state.play_file(discord.FFmpegPCMAudio(f'audio_files/{filename}'))
 
             await ctx.send(
                 embed=discord.Embed(description=f'🎶 **Добавлено из файла**: ```{filename}```', color=config.COLOR))
 
     @_join.before_invoke
-    @_play.before_invoke
     async def ensure_voice_state(self, ctx: commands.Context):
         if not ctx.author.voice or not ctx.author.voice.channel:
             raise commands.CommandError('You are not connected to any voice channel.')
@@ -265,43 +151,57 @@ class Music(commands.Cog):
     @commands.hybrid_command(name='menu')
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def menu(self, ctx: commands.Context, folder: str):
+        if ctx.interaction and not ctx.interaction.response.is_done():
+            await ctx.defer(ephemeral=True)
+
+        if not ctx.author.voice:
+            await ctx.send(embed=discord.Embed(description="Вы не в голосовом канале!", color=config.COLOR), ephemeral=True)
+            return
 
         channel = ctx.channel
-        content = os.listdir(f'./audio_files/{folder}')
+        folder_path = f'./audio_files/{folder}'
 
+        if not os.path.exists(folder_path):
+            await ctx.send(embed=discord.Embed(description=f"Папка `{folder}` не найдена!", color=config.COLOR), ephemeral=True)
+            return
+
+        content = os.listdir(folder_path)
         components = []
 
         if not ctx.voice_state.voice:
             await ctx.invoke(self._join)
 
         for file in content:
+            if not any(file.endswith(ext) for ext in ('.mp3', '.webm', '.wav')):
+                continue
+
             if len(file) >= 70:
-                os.rename(f'./audio_files/{folder}/{file}', f'./audio_files/{folder}/{file[:60]}.webm')
+                os.rename(f'{folder_path}/{file}', f'{folder_path}/{file[:60]}.webm')
                 label = f'{file.split(".")[0][:60]}...'
-                custom_id = f'./audio_files/{folder}/{file[:60]}.webm'
+                custom_id = f'{folder_path}/{file[:60]}.webm'
             else:
                 label = file.split('.')[0]
-                custom_id = f'./audio_files/{folder}/{file}'
+                custom_id = f'{folder_path}/{file}'
 
             components.append({'label': label, 'style': discord.ButtonStyle.green, 'custom_id': custom_id})
+
             if len(components) == 25:
-                button = await channel.send(view=Buttons(ctx, components))
+                await channel.send(view=ControlButtons(ctx, MusicPlayer(ctx, components)))
                 components.clear()
 
-        components = sorted(
-            components,
-            key=lambda x: first_number(x['label'])
-        )
+        if components:
+            components = sorted(components, key=lambda x: first_number(x['label']))
 
         archive = discord.Embed(title='Архив', color=config.COLOR)
-        player_embed = discord.Embed(title='Сейчас играет 🎶:', color=config.COLOR,
-                                     description='```Сейчас ничего не играет :(```')
+        player_embed = discord.Embed(title='Сейчас играет 🎶:', color=config.COLOR, description='```Сейчас ничего не играет :(```')
 
-        ctx.menu_state.music_player = MusicPlayer(ctx, components)
+        music_player = MusicPlayer(ctx, components)
+        ctx.menu_state.music_player = music_player
 
-        ctx.menu_state.player = await channel.send(embeds=[archive, player_embed],
-                                                   view=Buttons(ctx, ctx.menu_state.music_player))
-        ctx.menu_state.menu = await channel.send(view=MenuButtons(ctx, ctx.menu_state.music_player, 50 / 100))
+        ctx.menu_state.player = await channel.send(embeds=[archive, player_embed], view=ControlButtons(ctx, music_player))
+        ctx.menu_state.menu = await channel.send(view=MusicControlView(ctx, music_player, 50 / 100))
+
+        await ctx.interaction.delete_original_response()
 
 
 async def setup(bot: commands.Bot):

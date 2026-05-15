@@ -2,6 +2,8 @@ import json
 import os
 import random
 
+from config import TEMPLATE_PATH
+
 
 class NonUniqueNumber(Exception):
     pass
@@ -10,14 +12,14 @@ class NonUniqueNumber(Exception):
 class JsonHelper:
     @classmethod
     def get_floors(cls) -> list:
-        with open("data/seats.json", "r+", encoding="utf-8") as file:
+        with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
             data = json.load(file).get("floor")
             return list(data.keys())
 
     @classmethod
     def get_seats(cls) -> dict:
         seats = {}
-        with open("data/seats.json", "r+", encoding="utf-8") as file:
+        with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
             data = json.load(file).get("floor")
             for key, value in data.items():
                 seats[key] = value.get("list")
@@ -26,12 +28,12 @@ class JsonHelper:
 
     @classmethod
     def get_floor_menu(cls) -> dict:
-        with open("data/seats.json", "r+", encoding="utf-8") as file:
+        with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
             return json.load(file).get("menu")
 
     @classmethod
     def get_booking_mode(cls) -> str:
-        with open("data/seats.json", "r+", encoding="utf-8") as file:
+        with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
             return json.load(file).get("mode")
 
     @classmethod
@@ -49,8 +51,19 @@ class JsonHelper:
 
     @classmethod
     def is_single_floor(cls) -> bool:
-        with open("data/seats.json", "r+", encoding="utf-8") as file:
+        with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
             return len(json.load(file).get("floor")) == 1
+
+    @classmethod
+    def is_single_seat(cls, floor: str) -> bool:
+        with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
+            return len(json.load(file).get("floor").get(floor).get("list")) == 1
+
+    @classmethod
+    def get_single_seat_key(cls, floor: str) -> str:
+        with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
+            seat_key = list(json.load(file).get("floor").get(floor).get("list").keys())[0]
+            return seat_key
 
     @classmethod
     def add_number(cls, number: int):

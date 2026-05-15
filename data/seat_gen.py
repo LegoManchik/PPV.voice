@@ -3,7 +3,7 @@ import re
 
 from data.database import TicketBookingDatabase
 from data.json_helper import JsonHelper
-from data.seat_data import SeatModes
+from data.data_helper import SeatModes
 
 
 def generate_seats():

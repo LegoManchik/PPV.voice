@@ -18,6 +18,7 @@ class Language(enum.Enum):
                 return "ru_ru.json"
             case Language.EN.value:
                 return "en_us.json"
+        return "ru_ru.json"
 
     @classmethod
     def lang_role_get(cls, lang) -> int:
@@ -26,6 +27,7 @@ class Language(enum.Enum):
                 return config.RU_ROLE_ID
             case Language.EN.value:
                 return config.EN_ROLE_ID
+        return 0
 
 
 class LangContext(commands.Context):

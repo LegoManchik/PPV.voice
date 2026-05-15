@@ -16,4 +16,3 @@ def is_moderator(func):
             await interaction.response.defer()
 
     return wrapper
-

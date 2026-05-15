@@ -1,0 +1,13 @@
+.env
+config.py
+audio_files/
+logs/
+venv/
+seats.json
+data/templates/
+data/tickets.json
+data/ping_users.json
+data/tickets.db
+data/tickets.db-shm
+data/tickets.db-wal
+backups/

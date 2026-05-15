@@ -1,9 +1,8 @@
 import json
 from utils.logger import BotLogger
+from config import TEMPLATE_PATH
 
 logger = BotLogger().get_file_logger(__name__)
-
-FILE_PATH = "data/seats.json"
 
 MODE_VALUES = ["std", "stadium"]
 LANG_KEYS = ["en", "ru"]
@@ -129,7 +128,7 @@ class SeatsDebug:
     @classmethod
     def check_mode(cls, errors: list):
         try:
-            with open(FILE_PATH, "r+", encoding="utf-8") as file:
+            with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
                 mode = json.load(file).get("mode")
                 if mode is None:
                     errors.append(str(LostModeError()))
@@ -141,7 +140,7 @@ class SeatsDebug:
     @classmethod
     def check_global_menu(cls, errors: list):
         try:
-            with open(FILE_PATH, "r+", encoding="utf-8") as file:
+            with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
                 data = json.load(file)
                 menu = data.get("menu")
 
@@ -174,7 +173,7 @@ class SeatsDebug:
     @classmethod
     def check_floor(cls, errors: list):
         try:
-            with open(FILE_PATH, "r+", encoding="utf-8") as file:
+            with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
                 data = json.load(file)
                 floor = data.get("floor")
 
@@ -182,7 +181,7 @@ class SeatsDebug:
                 errors.append(str(LostFloorError()))
                 return
 
-            if len(list(floor.keys())) <= 1:
+            if len(list(floor.keys())) < 1:
                 errors.append(str(NoFloorsError("floor")))
 
             for key, value in floor.items():

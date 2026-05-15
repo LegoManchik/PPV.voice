@@ -10,7 +10,6 @@ from functools import wraps
 from logging.handlers import RotatingFileHandler
 import discord
 from discord.ext import commands
-from aiogram import Bot, Dispatcher, types
 
 
 def interaction_error_handler(logger: logging.Logger):
@@ -70,23 +69,16 @@ class BotLogger:
         self.logger.addHandler(console_handler)
 
         self.discord_logger = logging.getLogger("PPV.Discord")
-        self.telegram_logger = logging.getLogger("PPV.Telegram")
 
         self.discord_loggers = {}
-        self.telegram_loggers = {}
         self.file_loggers = {}
 
         self.discord_logger.setLevel(logging.INFO)
-        self.telegram_logger.setLevel(logging.INFO)
 
         self.discord_logger.propagate = True
-        self.telegram_logger.propagate = True
 
     def get_discord_logger(self) -> logging.Logger:
         return self.discord_logger
-
-    def get_telegram_logger(self) -> logging.Logger:
-        return self.telegram_logger
 
     def get_main_logger(self) -> logging.Logger:
         return self.logger
@@ -97,13 +89,6 @@ class BotLogger:
             logger.propagate = True
             self.discord_loggers[cog_name] = logger
         return self.discord_loggers[cog_name]
-
-    def get_telegram_handler_logger(self, handler_name: str) -> logging.Logger:
-        if handler_name not in self.telegram_loggers:
-            logger = logging.getLogger(f"PPV.Telegram.Handler.{handler_name}")
-            logger.propagate = True
-            self.telegram_loggers[handler_name] = logger
-        return self.telegram_loggers[handler_name]
 
     def get_file_logger(self, name: str) -> logging.Logger:
         if name not in self.file_loggers:

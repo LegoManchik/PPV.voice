@@ -12,9 +12,10 @@ from discord.ext.commands import Context, Bot
 from discord.utils import get
 
 import config
+from data.enums import BookingStatus, SeatModes
 from data.database import TicketBookingDatabase, SeatStatus
 from data.json_helper import JsonHelper
-from data.seat_data import SeatData, SeatModes, BookingStatus
+from data.data_helper import SeatData, FloorData
 from utils.decorators import is_moderator
 from utils.localization import Localization, LangContext, Language
 from utils.logger import BotLogger, interaction_error_handler
@@ -40,8 +41,16 @@ class BookingTicketButton(ui.Button):
     async def callback(self, interaction: discord.Interaction):
         channel = await self.ticket.create_ticket(lang=self.lang, user=interaction.user, guild=interaction.message.guild)
         if JsonHelper.is_single_floor():
-            print("s")
-            await channel.send(view=ChoiseSeatView(ctx=self.ctx, lang=self.lang, floor=JsonHelper.get_floors()[0]))
+            floor = JsonHelper.get_floors()[0]
+
+            if JsonHelper.is_single_seat(floor):
+                seat_key = JsonHelper.get_single_seat_key(floor=floor)
+                data = TicketBookingDatabase()
+                seat = data.get_seat(floor=floor, seat=seat_key)
+
+                await channel.send(view=SeatView(ctx=self.ctx, lang=self.lang, floor=floor, seat=seat_key))
+            else:
+                await channel.send(view=ChoiseSeatView(ctx=self.ctx, lang=self.lang, floor=floor))
         else:
             await channel.send(view=ChoiseFloorView(ctx=self.ctx, lang=self.lang))
 
@@ -110,8 +119,6 @@ class ConfirmationBookingView(ui.LayoutView):
 
         self.add_item(container)
 
-        ctx.bot.add_view(self)
-
 
 class ChoiseFloorView(ui.LayoutView):
     def __init__(self, ctx: Context, lang: str):
@@ -129,14 +136,13 @@ class ChoiseFloorView(ui.LayoutView):
         row_counter = 1
 
         for floor in JsonHelper.get_seats():
-            if floor != "VIP":
-                if len(current_row.children) >= 5:
-                    container.add_item(current_row)
-                    row_counter += 1
-                    current_row = ui.ActionRow(id=row_counter)
+            if len(current_row.children) >= 5:
+                container.add_item(current_row)
+                row_counter += 1
+                current_row = ui.ActionRow(id=row_counter)
 
-                button = FloorButton(ctx=ctx, lang=lang, floor=floor, disabled=not database.floor_is_available(floor))
-                current_row.add_item(button)
+            button = FloorButton(ctx=ctx, lang=lang, floor=floor, disabled=not database.floor_is_available(floor))
+            current_row.add_item(button)
 
         if current_row.children:
             container.add_item(current_row)
@@ -145,28 +151,25 @@ class ChoiseFloorView(ui.LayoutView):
 
         self.add_item(container)
 
-        ctx.bot.add_view(self)
-
 
 class SeatView(ui.LayoutView):
     def __init__(self, ctx: Context, lang: str, floor: str, seat: str, disabled: bool = False):
-        seat_data = SeatData(floor=floor, seat=seat)
-
-        database = TicketBookingDatabase()
+        floor_data = FloorData(floor)
+        seat_data = SeatData(floor, seat)
 
         super().__init__(timeout=None)
 
-        container = ui.Container(accent_colour=seat_data.get_menu_color())
+        container = ui.Container(accent_colour=floor_data.get_menu_color())
         container.add_item(ui.Section(ui.TextDisplay(f"# {seat}"), accessory=ReloadButton(ctx=ctx, lang=lang, disabled=disabled)))
-        container.add_item(ui.TextDisplay(seat_data.get_seat_description(lang=lang)))
+        container.add_item(ui.TextDisplay(seat_data.get_description(lang=lang)))
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
-        container.add_item(ui.MediaGallery(MediaGalleryItem(seat_data.get_seat_image())))
+        container.add_item(ui.MediaGallery(MediaGalleryItem(seat_data.get_image())))
 
         if seat_data.get_limit() is not None:
             container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-            tickets_left = seat_data.get_limit() - len(database.get_tickets_on_seat(floor, seat))
+            tickets_left = seat_data.get_limit() - len(seat_data.database.get_tickets_on_seat(floor, seat))
             limit = seat_data.get_limit() if seat_data.get_limit() < 9998 else "∞"
-            container.add_item(ui.TextDisplay(f"**{Localization.translatable("layout.seat.tickets_limit", lang=lang)}: {len(database.get_tickets_on_seat(floor, seat))}/{limit}{' 🔺' if tickets_left == 1 else ''}**"))
+            container.add_item(ui.TextDisplay(f"**{Localization.translatable("layout.value.tickets_limit", lang=lang)}: {len(seat_data.database.get_tickets_on_seat(floor, seat))}/{limit}{' 🔺' if tickets_left == 1 else ''}**"))
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
         container.add_item(
@@ -178,8 +181,6 @@ class SeatView(ui.LayoutView):
         )
 
         self.add_item(container)
-
-        ctx.bot.add_view(self)
 
 
 class ReloadButton(ui.Button):
@@ -232,16 +233,16 @@ class ChoiseSeatView(ui.LayoutView):
         self.floor = floor
         self.page = page
 
+        self.floor_data = FloorData(floor)
+
+        self.seats_list = self.floor_data.get_seats()
+
         self.seats_per_page = 16
-
-        self.seats_list = self.database.get_seat_list(floor)
-        self.seat_data = SeatData(floor=floor)
-
         self.start_idx = self.page * self.seats_per_page
         self.end_idx = self.start_idx + self.seats_per_page
         self.paginated_seats = self.seats_list[self.start_idx:self.end_idx]
 
-        self.main_container = ui.Container(accent_colour=self.seat_data.get_menu_color())
+        self.main_container = ui.Container(accent_colour=self.floor_data.get_menu_color())
 
         self._create_header()
         self._add_seats()
@@ -249,12 +250,10 @@ class ChoiseSeatView(ui.LayoutView):
 
         self.add_item(self.main_container)
 
-        ctx.bot.add_view(self)
-
     def _create_header(self):
-        self.main_container.add_item(ui.Section(ui.TextDisplay(f"# {self.seat_data.get_menu_title(self.lang)}"), accessory=ReloadButton(ctx=self.ctx, lang=self.lang)))
+        self.main_container.add_item(ui.Section(ui.TextDisplay(f"# {self.floor_data.get_menu_title(self.lang)}"), accessory=ReloadButton(ctx=self.ctx, lang=self.lang)))
         self.main_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
-        self.main_container.add_item(ui.MediaGallery(MediaGalleryItem(self.seat_data.get_menu_image())))
+        self.main_container.add_item(ui.MediaGallery(MediaGalleryItem(self.floor_data.get_menu_image())))
         self.main_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
 
     def _add_seats(self):
@@ -335,11 +334,10 @@ class BackSeatButton(ui.Button):
 class SeatButton(ui.Button):
     def __init__(self, ctx: Context, lang: str, floor: str, seat: str):
         seat_data = SeatData(floor=floor, seat=seat)
-        self.database = TicketBookingDatabase()
 
         super().__init__(label=str(seat), style=discord.ButtonStyle.gray,
                          custom_id=f"{seat}_{ctx.interaction.user.id}",
-                         disabled=(len(self.database.get_tickets_on_seat(floor, seat)) >= seat_data.get_limit()) or not self.database.seat_is_available(floor, seat))
+                         disabled=seat_data.is_bookable())
 
         self.ctx = ctx
         self.lang = lang
@@ -379,7 +377,7 @@ class RentalRequestView(ui.View):
 
         self.channel: discord.TextChannel = ticket_data.get('channel')
         self.floor: str = ticket_data.get('floor')
-        self.seat: str = ticket_data.get('seat')
+        self.seat: str = ticket_data.get('value')
         self.user: discord.User = ticket_data.get('user')
         self.players: str = ticket_data.get('players')
 
@@ -392,8 +390,6 @@ class RentalRequestView(ui.View):
         self.add_item(reject_button)
         self.add_item(approve_button)
 
-        ctx.bot.add_view(self)
-
     @is_moderator
     @interaction_error_handler(logger)
     async def reject_callback(self, interaction: discord.Interaction):
@@ -402,7 +398,7 @@ class RentalRequestView(ui.View):
         await self.ticket.close_ticket(self.channel)
         await self.channel.delete(reason="Тикет отклонён")
 
-        self.database.set_seat_status(self.floor, self.seat, SeatStatus.AVAILABLE)
+        self.database.set_seat_status(self.floor, self.seat, True)
 
         interaction.message.embeds[0].set_footer(text="Статус: 💀")
         embed = interaction.message.embeds[0]
@@ -422,7 +418,7 @@ class RentalRequestView(ui.View):
         await interaction.response.edit_message(embed=embed, view=RentalRequestView(ctx=self.ctx, lang=self.lang, disabled=True, ticket_data=self.ticket_data))
 
         if JsonHelper.get_booking_mode() in SeatModes.single_seats():
-            self.database.set_seat_status(SeatStatus.UNAVAILABLE)
+            self.database.set_seat_status(self.floor, self.seat, False)
 
         await member.add_roles(get(interaction.guild.roles, id=Language.lang_role_get(self.lang)))
 
@@ -469,7 +465,7 @@ class AddPlayersModal(discord.ui.Modal):
         await self.message.edit(view=SeatView(ctx=self.ctx, lang=self.lang, floor=self.floor, seat=self.seat, disabled=True))
         await interaction.response.send_message(embed=Localization.translatable_embed(discord.Embed(), "embed.moderators_notification", lang=self.lang))
 
-        ticket_data = {'channel': interaction.channel, 'floor': self.floor, 'seat': self.seat, 'user': interaction.user, 'players': self.players.value.split(' ')}
+        ticket_data = {'channel': interaction.channel, 'floor': self.floor, 'value': self.seat, 'user': interaction.user, 'players': self.players.value.split(' ')}
 
         self.database.add_user(self.floor, self.seat, players={str(interaction.user.id): ticket_data.get("players")}, status=BookingStatus.NOT_CONFIRMED)
 
@@ -478,6 +474,6 @@ class AddPlayersModal(discord.ui.Modal):
         await channel.send(embed=embed, view=RentalRequestView(ctx=self.ctx, lang=self.lang, ticket_data=ticket_data))
 
         if JsonHelper.get_booking_mode() in SeatModes.single_seats():
-            self.database.set_seat_status(SeatStatus.UNAVAILABLE)
+            self.database.set_seat_status(self.floor, self.seat, False)
 
         logger.info(f"Информация о тикете {interaction.user.name}: {ticket_data}")

@@ -1,0 +1,44 @@
+{
+    "mode": "std",
+    "menu": {
+        "title": {
+            "en": "PPVTEAM LIBERTY STADIUM",
+            "ru": "PPVTEAM LIBERTY STADIUM"
+        },
+        "description": {
+            "en": "PPVTEAM LIBERTY STADIUM",
+            "ru": "PPVTEAM LIBERTY STADIUM."
+        },
+        "image": {
+                "en": "https://media.discordapp.net/attachments/1365977478157303839/1446162623434326097/Base_Tickets.png",
+                "ru": "https://media.discordapp.net/attachments/1365977478157303839/1446162623434326097/Base_Tickets.png"
+        }
+    },
+    "floor": {
+        "A": {
+            "menu": {
+                "title": {
+                    "en": "PPVTEAM LIBERTY STADIUM",
+                    "ru": "PPVTEAM LIBERTY STADIUM"
+                },
+                "description": {
+                    "en": "PPVTEAM LIBERTY STADIUM",
+                    "ru": "PPVTEAM LIBERTY STADIUM"
+                },
+                "color": "2196F3",
+                "image": "https://media.discordapp.net/attachments/1365977478157303839/1446163630935638087/ee918978d36708aa.png"
+            },
+            "list": {
+                "1A": {
+                    "description": {
+                        "en": "When booking tickets, you can specify up to three Minecraft Nicknames of you and your friends. Total number of seats per ticket: 3. In the nicknames window, specify the current MINECRAFT Nicknames of the players for whom this place is booked.",
+                        "ru": "При бронировании билеты можно указать до трёх Minecraft-Ников вас и ваших друзей. Общее количество мест на 1 билет: 3. В окне никнеймов укажите актуальные MINECRAFT-Никнеймы игроков, на кого бронируется данное место."
+                    },
+                    "image": "https://media.discordapp.net/attachments/1365977478157303839/1446163630935638087/ee918978d36708aa.png",
+                    "limit": 9999,
+                    "color": "2196F3"
+                }
+            }
+        }
+    }
+}

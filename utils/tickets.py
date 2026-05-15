@@ -33,7 +33,7 @@ class TicketSystem:
             category=category,
             overwrites=overwrites
         )
-        with self.database.database.get_cursor() as cursor:
+        with self.database.db.get_cursor() as cursor:
             cursor.execute('''INSERT INTO tickets 
                          (user_id, channel_id, ticket_number, created_at) 
                          VALUES (?, ?, ?, ?)''', (user.id, channel.id, ticket_number, datetime.now().isoformat()))
@@ -41,5 +41,5 @@ class TicketSystem:
         return channel
 
     async def close_ticket(self, channel: discord.TextChannel):
-        with self.database.database.get_cursor() as cursor:
+        with self.database.db.get_cursor() as cursor:
             cursor.execute('''UPDATE tickets SET status = 'closed' WHERE channel_id = ?''', (channel.id,))

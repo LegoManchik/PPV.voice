@@ -13,7 +13,7 @@ class BackupSystem(commands.Cog):
         self.bot = bot
         self.logger = BotLogger().get_discord_cog_logger(self.__cog_name__)
         self.DB_PATH = 'data/tickets.db'
-        self.BACKUPS_DIR = 'backups'
+        self.BACKUPS_DIR = 'backups/database'
         self.BACKUP_INTERVAL = 6
         self.MAX_BACKUPS = 10
         self.auto_backup.start()
