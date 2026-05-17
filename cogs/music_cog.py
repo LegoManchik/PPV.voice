@@ -8,6 +8,7 @@ from discord.ext import commands
 
 import config
 
+from data.data_classes.archive import Archive
 from utils.logger import BotLogger
 from utils.sort_utils import first_number
 from utils.voice_utils import VoiceState, VoiceError
@@ -19,6 +20,7 @@ class Music(commands.Cog):
         self.bot = bot
         self.logger = BotLogger().get_discord_cog_logger(self.__cog_name__)
         self.voice_states = {}
+        self.menu_states = {}
 
     def get_voice_state(self, ctx: commands.Context):
         state = self.voice_states.get(ctx.guild.id)
@@ -28,9 +30,26 @@ class Music(commands.Cog):
 
         return state
 
-    def get_menu_state(self, ctx: commands.Context):
-        state = PlayerContext(ctx)
-        return state
+    def get_menu_state(self, ctx: commands.Context) -> PlayerContext:
+        channel_id = ctx.channel.id
+        if channel_id not in self.menu_states:
+            self.menu_states[channel_id] = PlayerContext(ctx)
+        return self.menu_states[channel_id]
+
+    def cleanup_menu_state(self, ctx: commands.Context):
+        channel_id = ctx.channel.id
+        if channel_id in self.menu_states:
+            state = self.menu_states[channel_id]
+
+            if state.archive:
+                asyncio.create_task(state.archive.delete())
+            if state.player:
+                asyncio.create_task(state.player.delete())
+            if state.menu:
+                asyncio.create_task(state.menu.delete())
+
+            state.cleanup()
+            del self.menu_states[channel_id]
 
     def cog_check(self, ctx: commands.Context):
         if not ctx.guild:
@@ -151,6 +170,7 @@ class Music(commands.Cog):
     @commands.hybrid_command(name='menu')
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def menu(self, ctx: commands.Context, folder: str):
+        self.cleanup_menu_state(ctx)
         if ctx.interaction and not ctx.interaction.response.is_done():
             await ctx.defer(ephemeral=True)
 
@@ -176,9 +196,10 @@ class Music(commands.Cog):
                 continue
 
             if len(file) >= 70:
-                os.rename(f'{folder_path}/{file}', f'{folder_path}/{file[:60]}.webm')
+
+                os.rename(f'{folder_path}/{file}', f'{folder_path}/{file[:60]}.{file.split('.')[-1]}')
                 label = f'{file.split(".")[0][:60]}...'
-                custom_id = f'{folder_path}/{file[:60]}.webm'
+                custom_id = f'{folder_path}/{file[:60]}.{file.split('.')[-1]}'
             else:
                 label = file.split('.')[0]
                 custom_id = f'{folder_path}/{file}'
@@ -192,13 +213,15 @@ class Music(commands.Cog):
         if components:
             components = sorted(components, key=lambda x: first_number(x['label']))
 
-        archive = discord.Embed(title='Архив', color=config.COLOR)
+        archive_embed = discord.Embed(title='Архив', color=config.COLOR)
         player_embed = discord.Embed(title='Сейчас играет 🎶:', color=config.COLOR, description='```Сейчас ничего не играет :(```')
 
         music_player = MusicPlayer(ctx, components)
+        archive = Archive()
         ctx.menu_state.music_player = music_player
+        ctx.menu_state.archive = archive
 
-        ctx.menu_state.player = await channel.send(embeds=[archive, player_embed], view=ControlButtons(ctx, music_player))
+        ctx.menu_state.player = await channel.send(embeds=[archive_embed, player_embed], view=ControlButtons(ctx, music_player))
         ctx.menu_state.menu = await channel.send(view=MusicControlView(ctx, music_player, 50 / 100))
 
         await ctx.interaction.delete_original_response()

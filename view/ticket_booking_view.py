@@ -169,7 +169,7 @@ class SeatView(ui.LayoutView):
             container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
             tickets_left = seat_data.get_limit() - len(seat_data.database.get_tickets_on_seat(floor, seat))
             limit = seat_data.get_limit() if seat_data.get_limit() < 9998 else "∞"
-            container.add_item(ui.TextDisplay(f"**{Localization.translatable("layout.value.tickets_limit", lang=lang)}: {len(seat_data.database.get_tickets_on_seat(floor, seat))}/{limit}{' 🔺' if tickets_left == 1 else ''}**"))
+            container.add_item(ui.TextDisplay(f"**{Localization.translatable("layout.seat.tickets_limit", lang=lang)}: {len(seat_data.database.get_tickets_on_seat(floor, seat))}/{limit}{' 🔺' if tickets_left == 1 else ''}**"))
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
         container.add_item(
@@ -260,13 +260,13 @@ class ChoiseSeatView(ui.LayoutView):
         current_row = ui.ActionRow()
         row_counter = 1
 
-        for seat, players, status in self.paginated_seats:
+        for seat in self.paginated_seats:
             if len(current_row.children) >= 5:
                 self.main_container.add_item(current_row)
                 row_counter += 1
                 current_row = ui.ActionRow(id=row_counter)
 
-            button = SeatButton(ctx=self.ctx, lang=self.lang, floor=self.floor, seat=seat)
+            button = SeatButton(ctx=self.ctx, lang=self.lang, floor=self.floor, seat=seat.seat)
             current_row.add_item(button)
 
         if current_row.children:

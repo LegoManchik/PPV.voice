@@ -1,5 +1,7 @@
 import os
-BOT_VERSION = "0.9"  # Версия бота. НЕ ТРОГАТЬ!!!
+import version
+
+BOT_VERSION = version.VERSION  # Версия бота
 
 DATABASE_PATH = os.path.join(os.path.dirname(__file__), "data/tickets.db")              # Пути к файлам.
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "data/templates/seats.json")    # Менять не рекомендуется

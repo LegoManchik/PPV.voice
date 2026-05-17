@@ -20,6 +20,8 @@ from view.ticket_booking_view import StartBookingView, StartBookingButton
 from data.database import TicketBookingDatabase
 from utils.logger import BotLogger
 
+from updater import UpdateStatus, BotUpdater
+
 logger_manager = BotLogger()
 main_logger = logger_manager.get_main_logger()
 discord_logger = logger_manager.get_discord_logger()
@@ -67,6 +69,18 @@ class DiscordBot(commands.Bot):
                     discord_logger.error(f'❌ Не удалось загрузить расширение cogs.{filename[:-3]}: {e}')
                     traceback.print_exc()
 
+    async def check_updates(self):
+        discord_logger.info("🔄 Проверка обновлений...")
+        updater = BotUpdater()
+        update_info = updater.check_for_updates()
+
+        if update_info.current_version >= update_info.latest_version:
+            discord_logger.info(f"✅ У вас установлена актуальная версия {update_info.current_version}")
+
+        if update_info.status == UpdateStatus.UPDATE_AVAILABLE:
+            discord_logger.info(f"✅ Доступна версия {update_info.latest_version}")
+            discord_logger.info("❓ Для установки запустите файл `update_script.py`")
+
 
 discord_bot = DiscordBot()
 
@@ -83,7 +97,7 @@ async def run_discord_bot():
 async def main():
     discord_task = asyncio.create_task(run_discord_bot())
 
-    await asyncio.gather(discord_task, discord_bot.load_extensions(), SeatsDebug.test())
+    await asyncio.gather(discord_task, discord_bot.load_extensions(), SeatsDebug.test(), discord_bot.check_updates())
 
 if __name__ == "__main__":
     asyncio.run(main())

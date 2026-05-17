@@ -1,7 +1,9 @@
 import asyncio
 import datetime
 import traceback
+
 from enum import Enum
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 
 import discord
@@ -9,8 +11,9 @@ from discord import ui
 from discord.ext import commands
 
 import config
+from data.data_classes.audio_file import AudioFile
+from data.data_classes.archive import Archive
 from utils.logger import interaction_error_handler
-from utils.song_embed import AudioFile
 
 
 class PlayerState(Enum):
@@ -37,6 +40,7 @@ class ButtonAction(Enum):
     VOLUME_QUIET = "quiet"
     VOLUME_10 = "volume_10"
     VOLUME_50 = "volume_50"
+    VOLUME_100 = "volume_100"
     STOP = "stop_button"
     PAUSE = "pause_button"
     RESUME = "resume_button"
@@ -46,12 +50,34 @@ VOLUME_PRESETS = {
     ButtonAction.VOLUME_QUIET: 0,
     ButtonAction.VOLUME_10: 0.1,
     ButtonAction.VOLUME_50: 0.5,
+    ButtonAction.VOLUME_100: 1.0
 }
+
+
+class PlayerEmbedHelper:
+    @staticmethod
+    def create_archive_embed(embed: discord.Embed, archive: Archive, last_track: str = None) -> discord.Embed:
+        embed.clear_fields()
+
+        if last_track is not None:
+            archive.add_track(last_track)
+
+        track_list = archive.track_list
+        if len(track_list) > 6:
+            embed.add_field(name=f"И ещё ({len(track_list) - 6}) треков...", value="", inline=False)
+
+        for track in track_list[-6:][:-1]:
+            embed.add_field(name="", value=f"`{track}`", inline=False)
+
+        embed.add_field(name="Последний трек:", value=f"`{archive.last_track}`", inline=False)
+
+        return embed
 
 
 class PlayerContext:
     def __init__(self, ctx: commands.Context):
         self.ctx = ctx
+        self.archive: Optional['Archive'] = None
         self.player: Optional['MusicPlayer'] = None
         self.menu: Optional[discord.Message] = None
 
@@ -61,6 +87,7 @@ class PlayerContext:
     def cleanup(self):
         self.player = None
         self.menu = None
+        self.archive = None
 
 
 class MusicPlayer:
@@ -82,8 +109,9 @@ class MusicPlayer:
     def is_paused(self) -> bool:
         return self._state == PlayerState.PAUSED
 
-    async def start_counter(self, song: AudioFile, player_message: discord.Message):
-        archive = self.ctx.menu_state.player.embeds[0]
+    async def start_counter(self, song: AudioFile, player_message: discord.Message, archive: Archive):
+        archive_embed = PlayerEmbedHelper.create_archive_embed(self.ctx.menu_state.player.embeds[0], archive)
+
         player_embed = self.ctx.menu_state.player.embeds[1]
         song_name = song.filename.split("/")[-1].split(".")[0]
 
@@ -108,21 +136,21 @@ class MusicPlayer:
                 footer_text = f'{current_time_str} / {total_time_str} {bar}'
                 player_embed.set_footer(text=footer_text)
 
-                await player_message.edit(embeds=[archive, player_embed])
+                await player_message.edit(embeds=[archive_embed, player_embed])
 
             await asyncio.sleep(0.5)
 
         if self._state != PlayerState.STOPPED:
             await self._stop_playback(player_message)
 
-    async def _stop_playback(self, player_message: discord.Message):
-        archive = self.ctx.menu_state.player.embeds[0]
+    async def _stop_playback(self, message: discord.Message):
+        archive_embed = self.ctx.menu_state.player.embeds[0]
         empty_embed = discord.Embed(
             title='Сейчас играет 🎶:',
             color=config.COLOR,
             description='```Сейчас ничего не играет :(```'
         )
-        await player_message.edit(embeds=[archive, empty_embed])
+        await message.edit(embeds=[archive_embed, empty_embed])
         self.stop()
 
     @staticmethod
@@ -136,14 +164,14 @@ class MusicPlayer:
             return f"{hours:02}:{minutes:02}:{seconds:02}"
         return f"{minutes:02}:{seconds:02}"
 
-    def start(self, song: AudioFile, message: discord.Message):
+    def start(self, song: AudioFile, player_message: discord.Message, archive: Archive):
         if not self._counter_task:
             self._current_song = song
             self._state = PlayerState.PLAYING
             self._start_time = discord.utils.utcnow()
             self._elapsed_time = 0
 
-            self._counter_task = asyncio.create_task(self.start_counter(song, message))
+            self._counter_task = asyncio.create_task(self.start_counter(song, player_message, archive))
 
     def pause(self):
         if self._state == PlayerState.PLAYING:
@@ -196,20 +224,12 @@ class ControlButtons(ui.View):
         return callback
 
     async def _add_to_archive(self, inter: discord.Interaction):
-        archive: discord.Embed = self.ctx.menu_state.player.embeds[0]
+        archive_embed = PlayerEmbedHelper.create_archive_embed(self.ctx.menu_state.player.embeds[0],
+                                                               self.ctx.menu_state.archive,
+                                                               inter.custom_id.split('/')[-1])
 
-        if len(archive.fields) == 25:
-            archive.clear_fields()
-
-        if len(archive.fields) > 0:
-            old_prev = archive.fields[-1]
-            archive.remove_field(-1)
-            archive.add_field(name="", value=old_prev.value.split('/')[-1], inline=False)
-
-        archive.add_field(name="Последний трек:", value=f"`{inter.custom_id.split('/')[-1]}`", inline=False)
-
-        current_track = self.ctx.menu_state.player.embeds[1]
-        await self.ctx.menu_state.player.edit(embeds=[archive, current_track])
+        current_track_embed = self.ctx.menu_state.player.embeds[1]
+        await self.ctx.menu_state.player.edit(embeds=[archive_embed, current_track_embed])
 
     async def _handle_file_playback(self, inter: discord.Interaction, file_path: str):
         await self._ensure_voice_connection(inter)
@@ -219,7 +239,7 @@ class ControlButtons(ui.View):
         if self._is_audio_file(self, file_path):
             await self._add_to_archive(inter)
             file = AudioFile(file_path, self.ctx.menu_state.player)
-            await self.ctx.voice_state.play_file(file)
+            await self.ctx.voice_state.play_file(file, self.ctx.menu_state.archive)
 
             await self._update_to_control_view(inter, file.volume)
 
@@ -251,7 +271,7 @@ class MusicControlView(ui.LayoutView):
         super().__init__(timeout=None)
         self.ctx = ctx
         self.player = player
-        self._volume = volume or 0.5
+        self._volume = volume or 1.0
 
         self.container = ui.Container(accent_color=config.COLOR)
 
@@ -288,7 +308,8 @@ class MusicControlView(ui.LayoutView):
         for action, value in VOLUME_PRESETS.items():
             emojis = {
                 ButtonAction.VOLUME_10: ButtonEmojis.VOLUME_10,
-                ButtonAction.VOLUME_50: ButtonEmojis.VOLUME_50
+                ButtonAction.VOLUME_50: ButtonEmojis.VOLUME_50,
+                ButtonAction.VOLUME_100: ButtonEmojis.VOLUME
             }
             button = ui.Button(
                 emoji=emojis[action].value if action is not ButtonAction.VOLUME_QUIET else ButtonEmojis.VOLUME.value,

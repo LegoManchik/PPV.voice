@@ -102,7 +102,7 @@ class NonExistentArgumentError(Exception):
 class SeatsDebug:
     @classmethod
     async def test(cls):
-        logger.info("Проверка целостности `seats.json`...")
+        logger.info("🔄 Проверка целостности `seats.json`...")
 
         errors = []
 

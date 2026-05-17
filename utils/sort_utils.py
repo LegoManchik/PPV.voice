@@ -1,9 +1,23 @@
+import re
+
 
 def first_number(x):
     try:
-        if (split := x.split('_', 1))[0].isdigit():
-            return int(x.split('_')[0])
+        if x is None:
+            return None
+
+        x_str = str(x)
+        number_str = ''
+
+        for char in x_str:
+            if char.isdigit():
+                number_str += char
+            else:
+                break
+        if number_str:
+            return int(number_str)
         else:
             return float('inf')
-    except TypeError:
+
+    except (TypeError, ValueError):
         return None

@@ -288,6 +288,16 @@ class TicketBookingDatabase:
             )
 
     @database_retry()
+    def set_booking_status(self, floor: str, seat: str, user_id: int, status: BookingStatus):
+        with self.db.get_cursor() as cursor:
+            cursor.execute(f'SELECT players FROM floor_{floor} WHERE seat = ?', (seat,))
+
+            players_dict = json.loads(cursor.fetchall()[0][0])
+
+            players_dict[str(user_id)]["status"] = status.value
+            cursor.execute(f'UPDATE floor_{floor} SET players = ? WHERE seat = ?', (json.dumps(players_dict), seat))
+
+    @database_retry()
     def seat_is_available(self, floor: str, seat: str) -> bool:
         with self.db.get_cursor() as cursor:
             cursor.execute(f'SELECT status FROM floor_{floor} WHERE seat = ?', (seat,))

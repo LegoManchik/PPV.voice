@@ -3,10 +3,9 @@ from mutagen.mp3 import MP3
 
 import config
 
-
 FFMPEG_OPTIONS = {
-    'before_options': '-re -fflags +genpts -flags low_delay -strict experimental',
-    'options': '-vn -b:a 128k -filter:a "asetpts=N/SR/TB, volume=1.0"',
+    'before_options': '-re -fflags +genpts -flags low_delay -strict experimental -threads 0 -probesize 50000 -analyzeduration 50000 -loglevel warning -hide_banner',
+    'options': '-vn -c:a pcm_s16le -ar 48000 -ac 2 -f s16le -bufsize 16k -fflags nobuffer -flags low_delay -avioflags direct -blocksize 4096',
 }
 
 

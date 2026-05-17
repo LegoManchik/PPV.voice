@@ -1,7 +1,8 @@
 import asyncio
 
 from discord.ext import commands
-from utils.song_embed import AudioFile
+from data.data_classes.audio_file import AudioFile
+from data.data_classes.archive import Archive
 
 
 class VoiceError(Exception):
@@ -17,7 +18,7 @@ class VoiceState:
 
         self.current = None
         self.voice = None
-        self._volume = 0.5
+        self._volume = 1.0
 
     @property
     def volume(self):
@@ -31,14 +32,14 @@ class VoiceState:
     def is_playing(self):
         return self.voice and self.current
     
-    async def play_file(self, file):
+    async def play_file(self, file: AudioFile, archive: Archive):
         if self.is_playing:
             self.ctx.menu_state.music_player.stop()
             self.skip()
             self.current = None
             
         self.current = file
-        self.ctx.menu_state.music_player.start(self.current, self.current.player)
+        self.ctx.menu_state.music_player.start(self.current, self.current.player, archive)
         self.voice.play(self.current.source)
         self.voice.source.volume = self._volume
 

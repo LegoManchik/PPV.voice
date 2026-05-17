@@ -35,11 +35,11 @@ class UpdateInfo:
 class BotUpdater:
     def __init__(
             self,
-            repo_owner: str,
-            repo_name: str,
-            current_version: str,
+            repo_owner: str = "LegoManchik",
+            repo_name: str = "PPV.voice",
+            current_version: str = config.BOT_VERSION,
             blacklist: List[str] = None,
-            branch: str = "main"
+            branch: str = "master"
     ):
         self.repo_owner = repo_owner
         self.repo_name = repo_name
