@@ -219,6 +219,19 @@ class TicketBookingDatabase:
             )
 
     @database_retry()
+    def get_user_bookings_count(self, user_id: int) -> int:
+        with self.db.get_cursor() as cursor:
+            count = 0
+            for floor in JsonHelper.get_seats():
+                cursor.execute(f'SELECT players FROM floor_{floor}')
+                rows = cursor.fetchall()
+                for row in rows:
+                    players_dict = json.loads(row[0])
+                    if str(user_id) in players_dict:
+                        count += 1
+            return count
+
+    @database_retry()
     def remove_user(self, floor: str, seat: str, user_id: int):
         with self.db.get_cursor() as cursor:
             cursor.execute(f'SELECT players FROM floor_{floor} WHERE seat = ?', (seat,))
@@ -330,6 +343,100 @@ class TicketBookingDatabase:
                     if str(user.id) in players_dict:
                         return True
             return False
+
+    @database_retry()
+    def get_ticket_by_channel(self, channel_id: int) -> dict | None:
+        with self.db.get_cursor() as cursor:
+            cursor.execute('''SELECT id, user_id, channel_id, ticket_number, created_at, status 
+                             FROM tickets WHERE channel_id = ?''', (channel_id,))
+            row = cursor.fetchone()
+
+            if row is None:
+                return None
+
+            return {
+                'id': row[0],
+                'user_id': row[1],
+                'channel_id': row[2],
+                'ticket_number': row[3],
+                'created_at': row[4],
+                'status': row[5]
+            }
+
+    @database_retry()
+    def get_ticket_by_user(self, user_id: int, status: str = None) -> list:
+        with self.db.get_cursor() as cursor:
+            if status:
+                cursor.execute('''SELECT id, user_id, channel_id, ticket_number, created_at, status 
+                                 FROM tickets WHERE user_id = ? AND status = ?''', (user_id, status))
+            else:
+                cursor.execute('''SELECT id, user_id, channel_id, ticket_number, created_at, status 
+                                 FROM tickets WHERE user_id = ?''', (user_id,))
+
+            rows = cursor.fetchall()
+            return [
+                {
+                    'id': row[0],
+                    'user_id': row[1],
+                    'channel_id': row[2],
+                    'ticket_number': row[3],
+                    'created_at': row[4],
+                    'status': row[5]
+                }
+                for row in rows
+            ]
+
+    @database_retry()
+    def get_all_tickets(self, status: str = None, limit: int = 100, offset: int = 0) -> list:
+        with self.db.get_cursor() as cursor:
+            if status:
+                cursor.execute('''SELECT id, user_id, channel_id, ticket_number, created_at, status 
+                                 FROM tickets WHERE status = ? 
+                                 ORDER BY created_at DESC LIMIT ? OFFSET ?''', (status, limit, offset))
+            else:
+                cursor.execute('''SELECT id, user_id, channel_id, ticket_number, created_at, status 
+                                 FROM tickets ORDER BY created_at DESC LIMIT ? OFFSET ?''', (limit, offset))
+
+            rows = cursor.fetchall()
+            return [
+                {
+                    'id': row[0],
+                    'user_id': row[1],
+                    'channel_id': row[2],
+                    'ticket_number': row[3],
+                    'created_at': row[4],
+                    'status': row[5]
+                }
+                for row in rows
+            ]
+
+    @database_retry()
+    def get_ticket_stats(self) -> dict:
+        with self.db.get_cursor() as cursor:
+            cursor.execute('''SELECT 
+                             COUNT(*) as total,
+                             SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open,
+                             SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed
+                             FROM tickets''')
+            row = cursor.fetchone()
+
+            return {
+                'total': row[0],
+                'open': row[1],
+                'closed': row[2]
+            }
+
+    @database_retry()
+    def delete_ticket(self, ticket_id: int) -> bool:
+        with self.db.get_cursor() as cursor:
+            cursor.execute('DELETE FROM tickets WHERE id = ?', (ticket_id,))
+            return cursor.rowcount > 0
+
+    @database_retry()
+    def update_ticket_status(self, channel_id: int, status: str) -> bool:
+        with self.db.get_cursor() as cursor:
+            cursor.execute('UPDATE tickets SET status = ? WHERE channel_id = ?', (status, channel_id))
+            return cursor.rowcount > 0
 
     def close_all_connections(self):
         self.db.close_connection()

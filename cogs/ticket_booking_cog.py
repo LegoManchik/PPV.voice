@@ -1,6 +1,10 @@
+import asyncio
+import io
+import aiohttp
+
 import discord
 from discord.ext import commands
-from discord import app_commands
+from discord import app_commands, AppCommandType
 from discord.utils import get
 
 import config
@@ -8,6 +12,8 @@ from data.database import TicketBookingDatabase
 from data.json_helper import JsonHelper
 from utils.localization import Localization, Language
 from utils.logger import BotLogger
+from utils.broadcast_helper import send_global_msg, send_global_personal_msg
+from utils.ticket_permissions_helper import setup_context_menus
 from view.ticket_booking_view import StartBookingView, SEAT_RESERVED_EMBED, StartVIPBookingView
 
 
@@ -15,7 +21,23 @@ class TicketBooking(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.logger = BotLogger().get_discord_cog_logger(self.__cog_name__)
-        self.db = TicketBookingDatabase()
+
+        setup_context_menus(bot)
+
+        self.send_global_msg = app_commands.ContextMenu(
+            name='Массовая рассылка',
+            callback=send_global_msg,
+            type=AppCommandType.message
+        )
+
+        self.send_global_personal_msg = app_commands.ContextMenu(
+            name='Массовая рассылка в ЛС',
+            callback=send_global_personal_msg,
+            type=AppCommandType.message
+        )
+
+        self.bot.tree.add_command(self.send_global_msg)
+        self.bot.tree.add_command(self.send_global_personal_msg)
 
     @commands.hybrid_command(name="buy_ticket", description="Создаёт меню бронирования билетов")
     @app_commands.describe(lang="Язык на котором будет меню")

@@ -37,6 +37,11 @@ class JsonHelper:
             return json.load(file).get("mode")
 
     @classmethod
+    def get_booking_limit(cls) -> int:
+        with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
+            return json.load(file).get("booking_limit")
+
+    @classmethod
     def get_random_number(cls) -> int:
         with open("data/tickets.json", "r+", encoding="utf-8") as file:
             data = json.load(file)

@@ -10,8 +10,8 @@
             "ru": "Выберите место на котором хотите сидеть. Заблокированные кнопки мест означают, что место уже забронировано."
         },
         "image": {
-                "en": "https://media.discordapp.net/attachments/1365977478157303839/1446162623434326097/Base_Tickets.png",
-                "ru": "https://media.discordapp.net/attachments/1365977478157303839/1446162623434326097/Base_Tickets.png"
+            "en": "https://media.discordapp.net/attachments/1365977478157303839/1446162623434326097/Base_Tickets.png",
+            "ru": "https://media.discordapp.net/attachments/1365977478157303839/1446162623434326097/Base_Tickets.png"
         }
     },
     "floor": {
@@ -672,22 +672,7 @@
                     "limit": 9999
                 }
             }
-        },
-        "VIP": {
-            "menu": {
-                "title": {
-                    "en": "VIP",
-                    "ru": "VIP"
-                },
-                "description": {
-                    "en": "Choose the zone where you want to sit. The locked zone buttons mean that the zone is already booked.",
-                    "ru": "Выберите зону, в которой хотите сидеть. Заблокированные кнопки зон означают, что зона уже забронирована."
-                },
-                "color": "fe8701",
-                "image": "https://media.discordapp.net/attachments/1365977478157303839/1446163697889443932/V.I.P.png"
-            },
-            "list": {}
         }
-    }
-
+    },
+    "booking_limit": 1
 }

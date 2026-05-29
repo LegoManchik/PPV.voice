@@ -10,12 +10,12 @@
   "layout.ticket_booking.description": "The advantages of the reservation are its own choice of location, beautiful views and proximity to the artist. The server can be accessed from both a licensed and a pirated version of the game. **The server will be closed to players who have not booked a place**.\n\nThere are 3 sitting areas + 2 standing areas in the hall of our arena. **A, B, C and FANZONE**. In the standing area, you can choose the side you want to stand on relative to the stage. There is **no passage** between the two standing areas . **The stage  is located in the middle of the hall**, which creates a **360° concert**. You can see the map of places below. To book a seat, click on the button below ↓\n\n> Players who have not booked a ticket will not be able to access the server. The booking feature allows you to choose the best place for you with a great view of the stage. Minecraft nicknames of 3 people can be specified in one ticket. All the players you specify in your ticket must be on our Discord server. All information about the server version, server IP, and game build is received by the ticket holder in a special channel. You will need to provide all the necessary information to attend the event to your invited guests.",
   "layout.ticket_booking.image": "https://media.discordapp.net/attachments/1365977478157303839/1446162623434326097/Base_Tickets.png",
 
-  "layout.seat.tickets_limit": "Tickets left",
+  "layout.seat.tickets_limit": "Seats reserved",
 
   "layout.booking_confirm.description": "Are you sure you want to reserve a seat?",
 
-  "embed.user_in_seat": {
-    "description": "**You have already booked a place**"
+  "embed.booking_limit_reached": {
+    "description": "**You have booked the maximum number of seats.**"
   },
 
   "embed.moderators_notification": {

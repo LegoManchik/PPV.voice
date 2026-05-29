@@ -6,6 +6,7 @@ logger = BotLogger().get_file_logger(__name__)
 
 MODE_VALUES = ["std", "stadium"]
 LANG_KEYS = ["en", "ru"]
+DEFAULT_BOOKING_LIMIT = 1
 
 
 class LostModeError(Exception):
@@ -99,6 +100,20 @@ class NonExistentArgumentError(Exception):
         return f"Не подходящий аргумент: `{self.arg}`, по пути: `{self.path}`"
 
 
+class LostBookingLimitError(Exception):
+    @classmethod
+    def __str__(cls):
+        return "Отсутствует параметр `booking_limit`"
+
+
+class InvalidBookingLimitError(Exception):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return f"Некорректное значение `booking_limit`: {self.value}. Ожидается целое положительное число"
+
+
 class SeatsDebug:
     @classmethod
     async def test(cls):
@@ -107,6 +122,7 @@ class SeatsDebug:
         errors = []
 
         cls.check_mode(errors)
+        cls.check_booking_limit(errors)
         cls.check_global_menu(errors)
         cls.check_floor(errors)
 
@@ -136,6 +152,47 @@ class SeatsDebug:
                     errors.append(str(NonExistentArgumentError("mode", mode)))
         except Exception as e:
             errors.append(f"Ошибка при проверке mode: {e}")
+
+    @classmethod
+    def check_booking_limit(cls, errors: list):
+        try:
+            with open(TEMPLATE_PATH, "r+", encoding="utf-8") as file:
+                data = json.load(file)
+                booking_limit = data.get("booking_limit")
+
+                if booking_limit is None:
+                    data["booking_limit"] = DEFAULT_BOOKING_LIMIT
+                    file.seek(0)
+                    json.dump(data, file, ensure_ascii=False, indent=4)
+                    file.truncate()
+                    logger.info(
+                        f"✅ Параметр `booking_limit` отсутствовал, установлено значение по умолчанию: {DEFAULT_BOOKING_LIMIT}")
+                else:
+                    try:
+                        limit = int(booking_limit)
+                        if limit < 0:
+                            errors.append(str(InvalidBookingLimitError(booking_limit)))
+
+                            data["booking_limit"] = DEFAULT_BOOKING_LIMIT
+                            file.seek(0)
+                            json.dump(data, file, ensure_ascii=False, indent=4)
+                            file.truncate()
+                            logger.warning(
+                                f"⚠️ Отрицательное значение `booking_limit` исправлено на {DEFAULT_BOOKING_LIMIT}")
+                        elif limit == 0:
+                            logger.info("ℹ️ `booking_limit` установлен в 0 - бронирование запрещено для всех")
+                    except ValueError:
+                        errors.append(str(InvalidBookingLimitError(booking_limit)))
+
+                        data["booking_limit"] = DEFAULT_BOOKING_LIMIT
+                        file.seek(0)
+                        json.dump(data, file, ensure_ascii=False, indent=4)
+                        file.truncate()
+                        logger.warning(
+                            f"⚠️ Некорректное значение `booking_limit` исправлено на {DEFAULT_BOOKING_LIMIT}")
+
+        except Exception as e:
+            errors.append(f"Ошибка при проверке booking_limit: {e}")
 
     @classmethod
     def check_global_menu(cls, errors: list):

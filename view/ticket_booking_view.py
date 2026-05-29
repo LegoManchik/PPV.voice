@@ -69,14 +69,24 @@ class StartBookingButton(ui.Button):
 
     @interaction_error_handler(logger)
     async def callback(self, interaction: discord.Interaction):
-        if not self.database.user_in_seats(interaction.user) or interaction.user.id in [int(id_) for id_ in JsonHelper.get_user_id_list()]:
-            ctx = await LangContext.get_context_from_interaction(bot=self.bot, interaction=interaction)
+        booking_limit = JsonHelper.get_booking_limit()
 
-            await interaction.response.send_message(view=ConfirmationBookingView(ctx=ctx, lang=self.lang), ephemeral=True, delete_after=5)
-        else:
+        user_bookings_count = self.database.get_user_bookings_count(interaction.user.id)
+
+        if user_bookings_count >= booking_limit:
             await interaction.response.send_message(
-                embed=Localization.translatable_embed(discord.Embed(), key="embed.user_in_seat", lang=self.lang),
-                ephemeral=True, delete_after=5)
+                embed=Localization.translatable_embed(
+                    discord.Embed(color=discord.Color.red()),
+                    key="embed.booking_limit_reached",
+                    lang=self.lang
+                ),
+                ephemeral=True,
+                delete_after=5
+            )
+            return
+
+        ctx = await LangContext.get_context_from_interaction(bot=self.bot, interaction=interaction)
+        await interaction.response.send_message(view=ConfirmationBookingView(ctx=ctx, lang=self.lang), ephemeral=True, delete_after=5)
 
 
 class StartBookingView(ui.LayoutView):
@@ -390,10 +400,9 @@ class RentalRequestView(ui.View):
         self.add_item(reject_button)
         self.add_item(approve_button)
 
-    @is_moderator
     @interaction_error_handler(logger)
     async def reject_callback(self, interaction: discord.Interaction):
-        member = get(interaction.guild.members, name=self.channel.name.split('-')[2])
+        member = get(interaction.guild.members, id=self.user.id)
         self.database.remove_user(floor=self.floor, seat=self.seat, user_id=member.id)
         await self.ticket.close_ticket(self.channel)
         await self.channel.delete(reason="Тикет отклонён")
@@ -409,10 +418,9 @@ class RentalRequestView(ui.View):
         embed.description = embed.description.format(self.seat)
         await self.user.send(embed=embed)
 
-    @is_moderator
     @interaction_error_handler(logger)
     async def approve_callback(self, interaction: discord.Interaction):
-        member = get(interaction.guild.members, name=self.channel.name.split('-')[2])
+        member = get(interaction.guild.members, id=self.user.id)
         interaction.message.embeds[0].set_footer(text="Статус: ✅")
         embed = interaction.message.embeds[0]
         await interaction.response.edit_message(embed=embed, view=RentalRequestView(ctx=self.ctx, lang=self.lang, disabled=True, ticket_data=self.ticket_data))
@@ -420,7 +428,8 @@ class RentalRequestView(ui.View):
         if JsonHelper.get_booking_mode() in SeatModes.single_seats():
             self.database.set_seat_status(self.floor, self.seat, False)
 
-        await member.add_roles(get(interaction.guild.roles, id=Language.lang_role_get(self.lang)))
+        if member.get_role(Language.lang_role_get(self.lang)) is None:
+            await member.add_roles(get(interaction.guild.roles, id=Language.lang_role_get(self.lang)))
 
         self.database.set_booking_status(floor=self.floor, seat=self.seat, user_id=member.id, status=BookingStatus.CONFIRMED)
 

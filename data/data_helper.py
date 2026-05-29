@@ -83,7 +83,7 @@ class SeatData:
         self.refresh()
 
     def is_bookable(self) -> bool:
-        return (len(self.database.get_tickets_on_seat(self.floor, self.get_key())) >= self.get_limit()) or not self.is_available()
+        return ((len(self.database.get_tickets_on_seat(self.floor, self.get_key())) >= self.get_limit()) or not self.is_available())
 
     def get_description(self, lang: str) -> str:
         return self.seat_params.get("description").get(lang)
