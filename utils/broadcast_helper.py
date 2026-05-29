@@ -62,6 +62,7 @@ async def send_to_single_recipient(channel, user, content, embeds, files_data):
         return False
 
 
+
 async def broadcast_parallel(interaction: discord.Interaction, message: discord.Message, target: str):
     category = get(interaction.guild.categories, id=config.TICKETS_CATEGORY_ID)
     database = TicketBookingDatabase()
