@@ -16,7 +16,7 @@ logger = BotLogger().get_file_logger(__name__)
 async def toggle_chat(interaction: discord.Interaction, user: discord.User):
     db = TicketBookingDatabase()
     if not db.get_ticket_by_channel(interaction.channel.id):
-        await interaction.response.send_message(embed=discord.Embed(description="❌ Только в тикете!"), ephemeral=True, delete_after=3)
+        await interaction.response.send_message(embed=discord.Embed(description="❌ Только в тикете!", color=discord.Color.blue()), ephemeral=True, delete_after=3)
         return
 
     current_perms = interaction.channel.overwrites_for(user)
@@ -40,7 +40,7 @@ async def toggle_chat(interaction: discord.Interaction, user: discord.User):
     await interaction.channel.set_permissions(member, overwrite=new_overwrite)
 
     await interaction.response.send_message(
-        f"{emoji} Пользователю {user.mention} **{action}** писать в {interaction.channel.mention}"
+        f"{emoji} Пользователю {user.mention} теперь **{action}** писать в {interaction.channel.mention}"
     )
 
 

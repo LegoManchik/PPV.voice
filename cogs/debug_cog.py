@@ -20,16 +20,16 @@ class Debug(commands.Cog):
     @commands.hybrid_command(name="clear_tickets")
     @commands.has_permissions(administrator=True)
     async def clear_tickets(self, ctx: commands.Context):
-        await ctx.send("🗑️ Начинаю массовое удаление тикетов...", ephemeral=True)
+        await ctx.send(embed=discord.Embed(description="🗑️ Начинаю массовое удаление тикетов...", color=discord.Color.blue()), ephemeral=True)
 
         category = get(ctx.guild.categories, id=config.TICKETS_CATEGORY_ID)
         if not category:
-            await ctx.send("❌ Категория тикетов не найдена!", ephemeral=True)
+            await ctx.send(embed=discord.Embed(description="❌ Категория тикетов не найдена!", color=discord.Color.blue()), ephemeral=True)
             return
 
         tickets = category.channels
         if not tickets:
-            await ctx.send("ℹ️ Нет тикетов для удаления!", ephemeral=True)
+            await ctx.send(embed=discord.Embed(description="ℹ️ Нет тикетов для удаления!", color=discord.Color.blue()), ephemeral=True)
             return
 
         tickets_data = TicketSystem(self.bot)
@@ -53,12 +53,13 @@ class Debug(commands.Cog):
         tasks = [delete_ticket(channel) for channel in tickets]
         await asyncio.gather(*tasks)
 
-        await ctx.send(
-            f"✅ **Удаление завершено!**\n"
-            f"📨 Успешно: {results['success']}\n"
-            f"❌ Ошибок: {results['failed']}",
-            ephemeral=True,
-            delete_after=10
+        await ctx.send(embed=discord.Embed(
+            description=
+                       f"✅ **Удаление завершено!**\n"
+                       f"📨 Успешно: {results['success']}\n"
+                       f"❌ Ошибок: {results['failed']}", color=discord.Color.blue()),
+                       ephemeral=True,
+                       delete_after=10
         )
 
     @commands.hybrid_command(name="setup_database")

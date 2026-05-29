@@ -80,6 +80,90 @@ class TicketBooking(commands.Cog):
         else:
             await ctx.send(embed=discord.Embed(description=f"❌ Пользователя {user.mention} нет в списке"))
 
+    @commands.hybrid_command(name="manage_all_ticket_perms")
+    @app_commands.describe(action="Выберите действие: выдать или отобрать права")
+    @app_commands.choices(action=[
+        app_commands.Choice(name="✅ Выдать права", value="grant"),
+        app_commands.Choice(name="🔒 Отобрать права", value="revoke")
+    ])
+    @commands.has_permissions(administrator=True)
+    async def manage_all_ticket_perms(self, ctx: commands.Context, action: str):
+        await ctx.defer()
+
+        action = action.lower()
+        category = get(ctx.guild.categories, id=config.TICKETS_CATEGORY_ID)
+        if not category:
+            await ctx.send(embed=discord.Embed(description="❌ Категория тикетов не найдена!", color=discord.Color.blue()))
+            return
+
+        tickets = list(category.channels)
+        if not tickets:
+            await ctx.send(embed=discord.Embed(description="ℹ️ Нет тикетов для обработки!", color=discord.Color.blue()))
+            return
+
+        action_name = "выдачу" if action == "grant" else "отзыв"
+        progress_msg = await ctx.send(embed=discord.Embed(
+            description=f"🔄 Начинаю {action_name} прав в {len(tickets)} тикетах...",
+            color=discord.Color.blue()
+        ))
+
+        database = TicketBookingDatabase()
+        semaphore = asyncio.Semaphore(10)
+        results = {"success": 0, "failed": 0, "no_user": 0}
+
+        async def process_ticket(channel):
+            async with semaphore:
+                ticket = database.get_ticket_by_channel(channel.id)
+
+                if ticket is not None:
+                    user = ctx.guild.get_member(ticket.get("user_id"))
+                else:
+                    try:
+                        user_name = channel.name.split("-")[2]
+                        user = get(ctx.guild.members, name=user_name)
+                    except:
+                        user = None
+
+                if user:
+                    try:
+                        overwrite = channel.overwrites_for(user)
+
+                        if action == "grant":
+                            overwrite.send_messages = True
+                            action_text = "выданы"
+                        else:
+                            overwrite.send_messages = False
+                            action_text = "отозваны"
+
+                        await channel.set_permissions(user, overwrite=overwrite)
+                        await channel.send(f"{"✏️" if overwrite.send_messages else "🔒"} Пользователю {user.mention} теперь **{"разрешено" if overwrite.send_messages else "запрещено"}** писать в {channel.mention}")
+                        self.logger.info(f"✅ Права {action_text} для {user.name} в {channel.name}")
+                        return True
+                    except Exception as e:
+                        self.logger.error(f"❌ Ошибка для {channel.name}: {e}")
+                        return False
+                return None
+
+        tasks = [process_ticket(channel) for channel in tickets]
+        results_list = await asyncio.gather(*tasks)
+
+        for result in results_list:
+            if result is True:
+                results["success"] += 1
+            elif result is False:
+                results["failed"] += 1
+            else:
+                results["no_user"] += 1
+
+        embed = discord.Embed(
+            title=f"Обновление прав завершено!",
+            description=f"📨 Обработано прав: {results['success']}\n"
+                        f"❌ Ошибок: {results['failed']}\n"
+                        f"👤 Пользователь не найден: {results['no_user']}",
+            color=discord.Color.blue()
+        )
+        await progress_msg.edit(content=None, embed=embed)
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(TicketBooking(bot))
