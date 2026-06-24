@@ -68,6 +68,5 @@ class Debug(commands.Cog):
         self.db.generate_seats()
         await ctx.send("Setup")
 
-
 async def setup(bot: commands.Bot):
     await bot.add_cog(Debug(bot))

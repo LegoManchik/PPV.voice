@@ -26,6 +26,7 @@ class Music(commands.Cog):
         state = self.voice_states.get(ctx.guild.id)
         if not state:
             state = VoiceState(self.bot, ctx)
+
             self.voice_states[ctx.guild.id] = state
 
         return state
@@ -145,7 +146,7 @@ class Music(commands.Cog):
 
     @commands.hybrid_command(name='play_file')
     @app_commands.describe(
-        filename='Принимает пути к файлам в формате "path/to/file.webm", файл предварительно должен быть скачен папку'
+        filename='Принимает пути к файлам в формате "path/to/file.mp3", файл предварительно должен быть скачен папку'
     )
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def play_file(self, ctx: commands.Context, *, filename: str):
@@ -225,6 +226,71 @@ class Music(commands.Cog):
         ctx.menu_state.menu = await channel.send(view=MusicControlView(ctx, music_player, 50 / 100))
 
         await ctx.interaction.delete_original_response()
+
+    @commands.hybrid_command(name="load_playlist")
+    @commands.has_permissions(administrator=True)
+    async def load_playlist(self, ctx: commands.Context, json_path: str):
+        """Загрузить плейлист из JSON: !load_playlist playlist.json"""
+
+        voice_state = ctx.voice_state
+
+        if not voice_state.voice:
+            await ctx.send("❌ Бот не в голосовом канале!")
+            return
+
+        if not Path(json_path).exists():
+            await ctx.send(f"❌ Файл `{json_path}` не найден!")
+            return
+
+        voice_state.load_playlist(json_path)
+
+        if not voice_state.playlist_manager.is_empty:
+            await ctx.send(f"✅ Загружено {voice_state.playlist_manager.total} треков из `{json_path}`!")
+            await ctx.send("▶️ Нажмите кнопку **Воспроизвести все** для начала!")
+        else:
+            await ctx.send(f"❌ Ошибка загрузки плейлиста из `{json_path}`!")
+
+    @commands.hybrid_command(name="playlist_info")
+    async def playlist_info(self, ctx: commands.Context):
+        """Показать информацию о плейлисте"""
+        voice_state = ctx.voice_state
+
+        if not voice_state.playlist_manager or voice_state.playlist_manager.is_empty:
+            await ctx.send("📭 Плейлист не загружен!")
+            return
+
+        pm = voice_state.playlist_manager
+
+        embed = discord.Embed(
+            title="🎵 Информация о плейлисте",
+            description=f"Всего треков: {pm.total}\n"
+                        f"Осталось: {pm.remaining}\n"
+                        f"Текущий индекс: {pm.current_index + 1}",
+            color=discord.Color.blue()
+        )
+
+        # Показываем текущий и следующий треки
+        current = pm.get_current_track()
+        if current:
+            name = Path(current.get("track", "")).stem
+            embed.add_field(
+                name="▶️ Текущий трек",
+                value=f"`{name}`\n"
+                      f"Старт: {current.get('start_delay', 0)}с | Энд: {current.get('end_delay', 0)}с",
+                inline=False
+            )
+
+        next_track = pm.get_next_track()
+        if next_track:
+            name = Path(next_track.get("track", "")).stem
+            embed.add_field(
+                name="⏭️ Следующий трек",
+                value=f"`{name}`\n"
+                      f"Старт: {next_track.get('start_delay', 0)}с | Энд: {next_track.get('end_delay', 0)}с",
+                inline=False
+            )
+
+        await ctx.send(embed=embed)
 
 
 async def setup(bot: commands.Bot):

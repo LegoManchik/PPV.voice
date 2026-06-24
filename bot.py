@@ -19,6 +19,7 @@ from view.ticket_booking_view import StartBookingView, StartBookingButton
 
 from data.database import TicketBookingDatabase
 from utils.logger import BotLogger
+from utils.voice_utils import preload_folder_global
 
 from updater import UpdateStatus, BotUpdater
 
@@ -44,6 +45,9 @@ class DiscordBot(commands.Bot):
 
         discord_logger.info(f'Discord bot {self.user} активен (ID: {self.user.id})')
 
+        asyncio.create_task(preload_folder_global("audio_files/test"))
+        asyncio.create_task(preload_folder_global("audio_files/a"))
+
         self.setup()
         await self.tree.sync()
 
@@ -58,6 +62,9 @@ class DiscordBot(commands.Bot):
         if not "ping_users.json" in os.listdir("data"):
             with open("data/ping_users.json", "w", encoding="utf-8") as file:
                 json.dump([], file, indent=4)
+
+        if not "playlist" in os.listdir():
+            os.mkdir("playlist")
 
     async def load_extensions(self):
         for filename in os.listdir('./cogs'):

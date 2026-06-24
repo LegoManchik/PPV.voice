@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import os
 import traceback
 
 from enum import Enum
@@ -7,13 +8,15 @@ from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 
 import discord
-from discord import ui
+from discord import ui, SelectOption
 from discord.ext import commands
 
 import config
 from data.data_classes.audio_file import AudioFile
-from data.data_classes.archive import Archive
-from utils.logger import interaction_error_handler
+from data.data_classes.archive import Archive, PlayerEmbedHelper
+from utils.logger import interaction_error_handler, BotLogger
+
+logger = BotLogger().get_file_logger(__name__)
 
 
 class PlayerState(Enum):
@@ -54,26 +57,6 @@ VOLUME_PRESETS = {
 }
 
 
-class PlayerEmbedHelper:
-    @staticmethod
-    def create_archive_embed(embed: discord.Embed, archive: Archive, last_track: str = None) -> discord.Embed:
-        embed.clear_fields()
-
-        if last_track is not None:
-            archive.add_track(last_track)
-
-        track_list = archive.track_list
-        if len(track_list) > 6:
-            embed.add_field(name=f"И ещё ({len(track_list) - 6}) треков...", value="", inline=False)
-
-        for track in track_list[-6:][:-1]:
-            embed.add_field(name="", value=f"`{track}`", inline=False)
-
-        embed.add_field(name="Последний трек:", value=f"`{archive.last_track}`", inline=False)
-
-        return embed
-
-
 class PlayerContext:
     def __init__(self, ctx: commands.Context):
         self.ctx = ctx
@@ -110,11 +93,12 @@ class MusicPlayer:
         return self._state == PlayerState.PAUSED
 
     async def start_counter(self, song: AudioFile, player_message: discord.Message, archive: Archive):
-        archive_embed = PlayerEmbedHelper.create_archive_embed(self.ctx.menu_state.player.embeds[0], archive)
+        archive_embed = PlayerEmbedHelper.create_archive_embed(
+            self.ctx.menu_state.player.embeds[0], archive
+        )
 
         player_embed = self.ctx.menu_state.player.embeds[1]
         song_name = song.filename.split("/")[-1].split(".")[0]
-
         player_embed.description = f'```{song_name}```'
 
         bar_length = 20
@@ -130,8 +114,8 @@ class MusicPlayer:
                 filled_length = int(bar_length * progress_percent)
                 bar = '█' * filled_length + '░' * (bar_length - filled_length)
 
-                current_time_str = self._format_time(self, self._elapsed_time)
-                total_time_str = self._format_time(self, song.duration)
+                current_time_str = self._format_time(self._elapsed_time)
+                total_time_str = self._format_time(song.duration)
 
                 footer_text = f'{current_time_str} / {total_time_str} {bar}'
                 player_embed.set_footer(text=footer_text)
@@ -154,7 +138,7 @@ class MusicPlayer:
         self.stop()
 
     @staticmethod
-    def _format_time(self, seconds: float) -> str:
+    def _format_time(seconds: float) -> str:
         seconds = round(seconds)
         hours = seconds // 3600
         minutes = (seconds % 3600) // 60
@@ -165,13 +149,18 @@ class MusicPlayer:
         return f"{minutes:02}:{seconds:02}"
 
     def start(self, song: AudioFile, player_message: discord.Message, archive: Archive):
-        if not self._counter_task:
-            self._current_song = song
-            self._state = PlayerState.PLAYING
-            self._start_time = discord.utils.utcnow()
-            self._elapsed_time = 0
+        if self._counter_task:
+            self._counter_task.cancel()
+            self._counter_task = None
 
-            self._counter_task = asyncio.create_task(self.start_counter(song, player_message, archive))
+        self._current_song = song
+        self._state = PlayerState.PLAYING
+        self._start_time = discord.utils.utcnow()
+        self._elapsed_time = 0
+
+        self._counter_task = asyncio.create_task(
+            self.start_counter(song, player_message, archive)
+        )
 
     def pause(self):
         if self._state == PlayerState.PLAYING:
@@ -223,25 +212,18 @@ class ControlButtons(ui.View):
 
         return callback
 
-    async def _add_to_archive(self, inter: discord.Interaction):
-        archive_embed = PlayerEmbedHelper.create_archive_embed(self.ctx.menu_state.player.embeds[0],
-                                                               self.ctx.menu_state.archive,
-                                                               inter.custom_id.split('/')[-1])
-
-        current_track_embed = self.ctx.menu_state.player.embeds[1]
-        await self.ctx.menu_state.player.edit(embeds=[archive_embed, current_track_embed])
-
     async def _handle_file_playback(self, inter: discord.Interaction, file_path: str):
         await self._ensure_voice_connection(inter)
 
         self.player.stop()
 
-        if self._is_audio_file(self, file_path):
-            await self._add_to_archive(inter)
+        if self._is_audio_file(file_path):
             file = AudioFile(file_path, self.ctx.menu_state.player)
-            await self.ctx.voice_state.play_file(file, self.ctx.menu_state.archive)
 
-            await self._update_to_control_view(inter, file.volume)
+            await self.ctx.voice_state.play_file_fast(file, self.ctx.menu_state.archive)
+
+            volume = self.ctx.voice_state.volume if self.ctx.voice_state else 1.0
+            await self._update_to_control_view(inter, volume)
 
     async def _ensure_voice_connection(self, inter: discord.Interaction):
         if not self.ctx.voice_state.voice:
@@ -257,7 +239,7 @@ class ControlButtons(ui.View):
             self.ctx.voice_state.voice = await destination.connect()
 
     @staticmethod
-    def _is_audio_file(self, file_path: str) -> bool:
+    def _is_audio_file(file_path: str) -> bool:
         return any(file_path.endswith(ext) for ext in ('.webm', '.mp3', '.wav'))
 
     async def _update_to_control_view(self, inter: discord.Interaction, volume: float):
@@ -282,10 +264,76 @@ class MusicControlView(ui.LayoutView):
         self._add_volume_buttons()
         self._add_preset_buttons()
         self._add_playback_buttons()
+        self._add_playlist_buttons()
         self.add_item(self.container)
 
+    def _add_playlist_buttons(self):
+
+        play_all_btn = ui.Button(
+            emoji=ButtonEmojis.RESUME.value,
+            label="Воспроизвести все",
+            style=discord.ButtonStyle.green,
+            custom_id="play_all"
+        )
+        play_all_btn.callback = self._play_all_callback
+
+        stop_all_btn = ui.Button(
+            emoji=ButtonEmojis.STOP.value,
+            label="Остановить все",
+            style=discord.ButtonStyle.red,
+            custom_id="stop_all"
+        )
+        stop_all_btn.callback = self._stop_all_callback
+
+        skip_btn = ui.Button(
+            label="⏭️ Пропустить",
+            style=discord.ButtonStyle.secondary,
+            custom_id="skip_song"
+        )
+        skip_btn.callback = self._skip_callback
+
+        playlist_options = []
+        playlist_path = config.PLAYLIST_PATH
+
+        if os.path.exists(playlist_path):
+            for file in os.listdir(playlist_path):
+                if file.endswith('.json'):
+                    playlist_options.append(
+                        SelectOption(
+                            label=file.replace('.json', ''),
+                            value=os.path.join(playlist_path, file)
+                        )
+                    )
+
+        if not playlist_options:
+            playlist_options.append(
+                SelectOption(
+                    label="Нет плейлистов",
+                    value="",
+                    default=True
+                )
+            )
+
+        playlist_select = ui.Select(
+            placeholder="Выберите плейлист",
+            options=playlist_options,
+            custom_id="playlist_select"
+        )
+        playlist_select.callback = self._set_playlist_callback
+
+        select_row = ui.ActionRow(playlist_select)
+        action_row = ui.ActionRow(play_all_btn, stop_all_btn, skip_btn)
+
+        self.container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
+        self.container.add_item(select_row)
+        self.container.add_item(action_row)
+
     def _add_volume_buttons(self):
-        volume_down = ui.Button(emoji=ButtonEmojis.VOLUME_DOWN.value, style=discord.ButtonStyle.gray, custom_id=ButtonAction.VOLUME_DOWN.value)
+        volume_down = ui.Button(
+            emoji=ButtonEmojis.VOLUME_DOWN.value,
+            style=discord.ButtonStyle.gray,
+            custom_id=ButtonAction.VOLUME_DOWN.value
+        )
         volume_down.callback = self._create_volume_callback(-0.1)
 
         self.volume_display = ui.Button(
@@ -295,12 +343,15 @@ class MusicControlView(ui.LayoutView):
             custom_id="volume_display"
         )
 
-        volume_up = ui.Button(emoji=ButtonEmojis.VOLUME_UP.value, style=discord.ButtonStyle.gray, custom_id=ButtonAction.VOLUME_UP.value)
+        volume_up = ui.Button(
+            emoji=ButtonEmojis.VOLUME_UP.value,
+            style=discord.ButtonStyle.gray,
+            custom_id=ButtonAction.VOLUME_UP.value
+        )
         volume_up.callback = self._create_volume_callback(0.1)
 
-        action_row = ui.ActionRow(
-            volume_down, self.volume_display, volume_up
-        )
+        action_row = ui.ActionRow(volume_down, self.volume_display, volume_up)
+
         self.container.add_item(action_row)
 
     def _add_preset_buttons(self):
@@ -322,25 +373,33 @@ class MusicControlView(ui.LayoutView):
         self.container.add_item(action_row)
 
     def _add_playback_buttons(self):
-        stop_btn = ui.Button(emoji=ButtonEmojis.STOP.value, style=discord.ButtonStyle.danger, custom_id=ButtonAction.STOP.value)
+        stop_btn = ui.Button(
+            emoji=ButtonEmojis.STOP.value,
+            style=discord.ButtonStyle.danger,
+            custom_id=ButtonAction.STOP.value
+        )
         stop_btn.callback = self._create_playback_callback(ButtonAction.STOP)
 
-        if self.ctx.voice_state.voice and self.ctx.voice_state.voice.is_playing():
+        voice = self.ctx.voice_state.voice
+        is_actually_playing = voice and voice.is_playing()
+        is_paused = self.player.is_paused
+
+        if is_actually_playing and not is_paused:
             play_pause_btn = ui.Button(
-                emoji=ButtonEmojis.PAUSE.value if not self.player.is_paused else ButtonEmojis.RESUME.value,
+                emoji=ButtonEmojis.PAUSE.value,
                 style=discord.ButtonStyle.primary,
-                custom_id=ButtonAction.PAUSE.value if not self.player.is_paused else ButtonAction.RESUME.value
+                custom_id=ButtonAction.PAUSE.value
             )
-            play_pause_btn.callback = self._create_playback_callback(
-                ButtonAction.PAUSE if not self.player.is_paused else ButtonAction.RESUME
-            )
+            play_pause_btn.callback = self._create_playback_callback(ButtonAction.PAUSE)
         else:
-            play_pause_btn = ui.Button(emoji=ButtonEmojis.RESUME.value, style=discord.ButtonStyle.primary, custom_id=ButtonAction.RESUME.value)
+            play_pause_btn = ui.Button(
+                emoji=ButtonEmojis.RESUME.value,
+                style=discord.ButtonStyle.primary,
+                custom_id=ButtonAction.RESUME.value
+            )
             play_pause_btn.callback = self._create_playback_callback(ButtonAction.RESUME)
 
-        action_row = ui.ActionRow(
-            stop_btn, play_pause_btn
-        )
+        action_row = ui.ActionRow(stop_btn, play_pause_btn)
         self.container.add_item(action_row)
 
     def _create_volume_callback(self, delta: float):
@@ -349,9 +408,18 @@ class MusicControlView(ui.LayoutView):
                 await inter.response.defer()
                 return
 
-            new_volume = max(0, min(1, self.ctx.voice_state.voice.source.volume + delta))
-            self.ctx.voice_state.voice.source.volume = new_volume
-            await self._update_volume_display(inter)
+            voice = self.ctx.voice_state.voice
+
+            if voice.source is None:
+                return
+
+            try:
+                new_volume = max(0, min(1, voice.source.volume + delta))
+                voice.source.volume = new_volume
+                self._volume = new_volume
+                await self._update_volume_display(inter)
+            except AttributeError:
+                return
 
         return callback
 
@@ -361,8 +429,17 @@ class MusicControlView(ui.LayoutView):
                 await inter.response.defer()
                 return
 
-            self.ctx.voice_state.voice.source.volume = target_volume
-            await self._update_volume_display(inter)
+            voice = self.ctx.voice_state.voice
+
+            if voice.source is None:
+                return
+
+            try:
+                voice.source.volume = target_volume
+                self._volume = target_volume
+                await self._update_volume_display(inter)
+            except AttributeError:
+                return
 
         return callback
 
@@ -379,43 +456,132 @@ class MusicControlView(ui.LayoutView):
             elif action == ButtonAction.RESUME:
                 await self._handle_resume(inter)
 
-            await inter.response.defer()
-
         return callback
 
     async def _handle_stop(self, inter: discord.Interaction):
-        if self.ctx.voice_state.is_playing:
-            self.ctx.voice_state.voice.stop()
+        voice = self.ctx.voice_state.voice
+        if voice and voice.is_playing():
+            voice.stop()
             self.player.stop()
+
+            self.ctx.voice_state._is_playing_playlist = False
+            self.ctx.voice_state._is_playing_single = False
+            self.ctx.voice_state.current = None
 
             if inter.response and not inter.response.is_done():
                 await inter.response.defer()
 
             archive = self.ctx.menu_state.player.embeds[0]
-            empty_embed = discord.Embed(description='```Сейчас ничего не играет :(```', color=config.COLOR)
+            empty_embed = discord.Embed(
+                title='Сейчас играет 🎶:',
+                color=config.COLOR,
+                description='```Сейчас ничего не играет :(```'
+            )
+            empty_embed.set_footer(text="")
             await self.ctx.menu_state.player.edit(embeds=[archive, empty_embed])
 
+            new_view = ControlButtons(self.ctx, self.player)
+            if inter.response:
+                await inter.response.edit_message(view=new_view)
+
     async def _handle_pause(self, inter: discord.Interaction):
-        if self.ctx.voice_state.is_playing and self.ctx.voice_state.voice.is_playing():
-            self.ctx.voice_state.voice.pause()
+        voice = self.ctx.voice_state.voice
+        if voice and voice.is_playing():
+            voice.pause()
             self.player.pause()
             await self._rebuild_view(inter)
 
     async def _handle_resume(self, inter: discord.Interaction):
-        if self.ctx.voice_state.is_playing:
-            self.ctx.voice_state.voice.resume()
+        voice = self.ctx.voice_state.voice
+        if voice:
+            voice.resume()
             self.player.resume()
             await self._rebuild_view(inter)
 
     async def _update_volume_display(self, inter: discord.Interaction):
-        new_volume = self.ctx.voice_state.voice.source.volume
-        self.volume_display.label = f'{float_to_present(new_volume)}%'
+        voice = self.ctx.voice_state.voice
+
+        if voice and voice.source and hasattr(voice.source, 'volume'):
+            new_volume = voice.source.volume
+            self._volume = new_volume
+            self.volume_display.label = f'{float_to_present(new_volume)}%'
+        else:
+            self.volume_display.label = f'{float_to_present(self._volume)}%'
+
         await inter.response.edit_message(view=self)
 
     async def _rebuild_view(self, inter: discord.Interaction):
         new_volume = self.ctx.voice_state.voice.source.volume if self.ctx.voice_state.voice else self._volume
         new_view = MusicControlView(self.ctx, self.player, new_volume)
         await inter.response.edit_message(view=new_view)
+
+    @interaction_error_handler(logger)
+    async def _play_all_callback(self, inter: discord.Interaction):
+        await inter.response.defer(ephemeral=True)
+
+        voice_state = self.ctx.voice_state
+
+        if not voice_state.voice:
+            return
+
+        if not voice_state.playlist_manager or voice_state.playlist_manager.is_empty:
+            return
+
+        await voice_state.start_playlist(self.ctx.menu_state.archive)
+
+    @interaction_error_handler(logger)
+    async def _stop_all_callback(self, inter: discord.Interaction):
+        await inter.response.defer(ephemeral=True)
+
+        voice_state = self.ctx.voice_state
+        voice_state._is_playing_playlist = False
+        voice_state._is_playing_single = False
+
+        if voice_state.voice and voice_state.voice.is_playing():
+            voice_state.voice.stop()
+
+        self.player.stop()
+        await voice_state._stop_playback("⏹️ Воспроизведение остановлено")
+
+    @interaction_error_handler(logger)
+    async def _skip_callback(self, inter: discord.Interaction):
+        await inter.response.defer(ephemeral=True)
+
+        voice_state = self.ctx.voice_state
+
+        if not voice_state.voice or not voice_state.voice.is_playing():
+            return
+
+        if voice_state._is_playing_single:
+            voice_state.voice.stop()
+            return
+
+        if voice_state._is_playing_playlist and voice_state.playlist_manager:
+            current_track = voice_state.playlist_manager.get_current_track()
+            is_last = voice_state.playlist_manager.get_next_track() is None
+
+            voice_state.skip()
+
+            if is_last:
+                voice_state._is_playing_playlist = False
+                await voice_state._stop_playback("✅ Все треки воспроизведены!")
+        else:
+            voice_state.skip()
+
+    @interaction_error_handler(logger)
+    async def _set_playlist_callback(self, inter: discord.Interaction):
+        await inter.response.defer(ephemeral=True)
+
+        voice_state = self.ctx.voice_state
+
+        if not voice_state.voice:
+            return
+
+        selected_value = inter.data["values"][0]
+        if not selected_value:
+            return
+
+        voice_state.load_playlist(selected_value)
 
 
 def float_to_present(volume: float) -> int:
