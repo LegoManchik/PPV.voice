@@ -40,13 +40,10 @@ class DiscordBot(commands.Bot):
         if not self.persistent_views_added:
             self.persistent_views_added = True
 
-            self.add_view(view=StartBookingView(self, lang='en'))
-            self.add_view(view=StartBookingView(self, lang='ru'))
+            self.add_view(view=StartBookingView(self, lang="en"))
+            self.add_view(view=StartBookingView(self, lang="ru"))
 
-        discord_logger.info(f'Discord bot {self.user} активен (ID: {self.user.id})')
-
-        asyncio.create_task(preload_folder_global("audio_files/test"))
-        asyncio.create_task(preload_folder_global("audio_files/a"))
+        discord_logger.info(f"#️⃣ Дискорд бот {self.user} активен (ID: {self.user.id})")
 
         self.setup()
         await self.tree.sync()
@@ -62,9 +59,6 @@ class DiscordBot(commands.Bot):
         if not "ping_users.json" in os.listdir("data"):
             with open("data/ping_users.json", "w", encoding="utf-8") as file:
                 json.dump([], file, indent=4)
-
-        if not "playlist" in os.listdir():
-            os.mkdir("playlist")
 
     async def load_extensions(self):
         for filename in os.listdir('./cogs'):
@@ -88,6 +82,10 @@ class DiscordBot(commands.Bot):
             discord_logger.info(f"✅ Доступна версия {update_info.latest_version}")
             discord_logger.info("❓ Для установки запустите файл `update_script.py`")
 
+    async def preload_tracks(self):
+        for folder in os.listdir("audio_files"):
+            asyncio.create_task(preload_folder_global(f"audio_files/{folder}"))
+
 
 discord_bot = DiscordBot()
 
@@ -104,7 +102,7 @@ async def run_discord_bot():
 async def main():
     discord_task = asyncio.create_task(run_discord_bot())
 
-    await asyncio.gather(discord_task, discord_bot.load_extensions(), SeatsDebug.test(), discord_bot.check_updates())
+    await asyncio.gather(discord_task, discord_bot.load_extensions(), SeatsDebug.test(), discord_bot.check_updates(), discord_bot.preload_tracks())
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,5 +1,6 @@
 import math
 import os
+import json
 from pathlib import Path
 
 import discord
@@ -71,7 +72,6 @@ class Music(commands.Cog):
         destination = ctx.author.voice.channel
 
         if not ctx.author.voice:
-            await ctx.send(embed=discord.Embed(description="Вы не в голосовом канале!", color=config.COLOR), ephemeral=True)
             return
 
         if ctx.voice_state.voice and ctx.voice_state.voice.is_connected():
@@ -101,7 +101,8 @@ class Music(commands.Cog):
     async def _leave(self, ctx: commands.Context):
         if not ctx.voice_state.voice:
             return await ctx.send(
-                embed=discord.Embed(description='Бот не подключен ни к одному голосовому каналу', color=config.COLOR), ephemeral=True)
+                embed=discord.Embed(description='Бот не подключен ни к одному голосовому каналу', color=config.COLOR),
+                ephemeral=True)
 
         await ctx.voice_state.stop()
         del self.voice_states[ctx.guild.id]
@@ -110,11 +111,13 @@ class Music(commands.Cog):
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def _volume(self, ctx: commands.Context, *, volume: int):
         if not ctx.voice_state.is_playing:
-            return await ctx.send(embed=discord.Embed(description='Сейчас ничего не играет', color=config.COLOR), ephemeral=True)
+            return await ctx.send(embed=discord.Embed(description='Сейчас ничего не играет', color=config.COLOR),
+                                  ephemeral=True)
 
         if 0 > volume < 100:
             return await ctx.send(
-                embed=discord.Embed(description='Громкость должна быть от 0 до 100', color=config.COLOR), ephemeral=True)
+                embed=discord.Embed(description='Громкость должна быть от 0 до 100', color=config.COLOR),
+                ephemeral=True)
 
         ctx.voice_state.voice.source.volume = volume / 100
         await ctx.send(
@@ -169,128 +172,126 @@ class Music(commands.Cog):
                 await ctx.voice_client.move_to(ctx.author.voice.channel)
 
     @commands.hybrid_command(name='menu')
+    @app_commands.describe(
+        folder="Папка с аудиофайлами"
+    )
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def menu(self, ctx: commands.Context, folder: str):
         self.cleanup_menu_state(ctx)
-        if ctx.interaction and not ctx.interaction.response.is_done():
-            await ctx.defer(ephemeral=True)
 
         if not ctx.author.voice:
-            await ctx.send(embed=discord.Embed(description="Вы не в голосовом канале!", color=config.COLOR), ephemeral=True)
+            await ctx.send(embed=discord.Embed(description="❌ Вы не в голосовом канале!"), ephemeral=True)
             return
 
-        channel = ctx.channel
         folder_path = f'./audio_files/{folder}'
-
         if not os.path.exists(folder_path):
-            await ctx.send(embed=discord.Embed(description=f"Папка `{folder}` не найдена!", color=config.COLOR), ephemeral=True)
+            await ctx.send(embed=discord.Embed(description=f"❌ Папка `{folder}` не найдена!"), ephemeral=True)
             return
+
+        if not ctx.voice_state.voice or not ctx.voice_state.voice.is_connected():
+            try:
+                destination = ctx.author.voice.channel
+                ctx.voice_state.voice = await destination.connect(timeout=20.0, reconnect=True)
+            except Exception as e:
+                await ctx.send(embed=discord.Embed(description=f"❌ Ошибка подключения: {str(e)[:100]}"), ephemeral=True)
+                return
+
+        await ctx.send(embed=discord.Embed(description="🔄 Загрузка меню..."), ephemeral=True)
 
         content = os.listdir(folder_path)
+
         components = []
-
-        if not ctx.voice_state.voice:
-            await ctx.invoke(self._join)
-
         for file in content:
             if not any(file.endswith(ext) for ext in ('.mp3', '.webm', '.wav')):
                 continue
-
-            if len(file) >= 70:
-
-                os.rename(f'{folder_path}/{file}', f'{folder_path}/{file[:60]}.{file.split('.')[-1]}')
-                label = f'{file.split(".")[0][:60]}...'
-                custom_id = f'{folder_path}/{file[:60]}.{file.split('.')[-1]}'
-            else:
-                label = file.split('.')[0]
-                custom_id = f'{folder_path}/{file}'
-
+            label = file.split('.')[0]
+            custom_id = f'{folder_path}/{file}'
             components.append({'label': label, 'style': discord.ButtonStyle.green, 'custom_id': custom_id})
 
-            if len(components) == 25:
-                await channel.send(view=ControlButtons(ctx, MusicPlayer(ctx, components)))
-                components.clear()
-
-        if components:
-            components = sorted(components, key=lambda x: first_number(x['label']))
-
-        archive_embed = discord.Embed(title='Архив', color=config.COLOR)
-        player_embed = discord.Embed(title='Сейчас играет 🎶:', color=config.COLOR, description='```Сейчас ничего не играет :(```')
-
-        music_player = MusicPlayer(ctx, components)
+        music_player = MusicPlayer(ctx, sorted(components, key=lambda x: first_number(x['label'])))
         archive = Archive()
+
         ctx.menu_state.music_player = music_player
         ctx.menu_state.archive = archive
 
-        ctx.menu_state.player = await channel.send(embeds=[archive_embed, player_embed], view=ControlButtons(ctx, music_player))
-        ctx.menu_state.menu = await channel.send(view=MusicControlView(ctx, music_player, 50 / 100))
+        archive_embed = discord.Embed(title='Архив', color=config.COLOR)
+        player_embed = discord.Embed(
+            title='Сейчас играет 🎶:',
+            color=config.COLOR,
+            description='```Сейчас ничего не играет :(```'
+        )
+
+        ctx.menu_state.player = await ctx.channel.send(
+            embeds=[archive_embed, player_embed],
+            view=ControlButtons(ctx, music_player)
+        )
+
+        ctx.menu_state.menu = await ctx.channel.send(
+            view=MusicControlView(ctx, music_player, 0.5)
+        )
 
         await ctx.interaction.delete_original_response()
 
-    @commands.hybrid_command(name="load_playlist")
+    @commands.hybrid_command(name='add_playlist')
+    @app_commands.describe(
+        playlist=".json файл с массивом треков"
+    )
     @commands.has_permissions(administrator=True)
-    async def load_playlist(self, ctx: commands.Context, json_path: str):
-        """Загрузить плейлист из JSON: !load_playlist playlist.json"""
-
-        voice_state = ctx.voice_state
-
-        if not voice_state.voice:
-            await ctx.send("❌ Бот не в голосовом канале!")
+    async def add_playlist(self, ctx: commands.Context, playlist: discord.Attachment):
+        if not playlist.filename.endswith('.json'):
+            await ctx.send(embed=discord.Embed(description="❌ Файл должен быть в формате `.json`!", color=discord.Color.red()), ephemeral=True)
             return
 
-        if not Path(json_path).exists():
-            await ctx.send(f"❌ Файл `{json_path}` не найден!")
+        if playlist.size > 1024 * 1024:
+            await ctx.send(embed=discord.Embed(description="❌ Файл слишком большой! Максимум 1MB.", color=discord.Color.red()), ephemeral=True)
             return
 
-        voice_state.load_playlist(json_path)
+        try:
+            content = await playlist.read()
+            data = json.loads(content.decode('utf-8'))
 
-        if not voice_state.playlist_manager.is_empty:
-            await ctx.send(f"✅ Загружено {voice_state.playlist_manager.total} треков из `{json_path}`!")
-            await ctx.send("▶️ Нажмите кнопку **Воспроизвести все** для начала!")
-        else:
-            await ctx.send(f"❌ Ошибка загрузки плейлиста из `{json_path}`!")
+            if not isinstance(data, list):
+                await ctx.send(embed=discord.Embed(description="❌ Неверная структура JSON! Ожидается массив треков.", color=discord.Color.red()), ephemeral=True)
+                return
 
-    @commands.hybrid_command(name="playlist_info")
-    async def playlist_info(self, ctx: commands.Context):
-        """Показать информацию о плейлисте"""
-        voice_state = ctx.voice_state
+            for i, track in enumerate(data):
+                if not isinstance(track, dict):
+                    await ctx.send(embed=discord.Embed(description=f"❌ Ошибка в треке {i + 1}: ожидается объект.", color=discord.Color.red()), ephemeral=True)
+                    return
+                if 'track' not in track:
+                    await ctx.send(embed=discord.Embed(description=f"❌ Ошибка в треке {i + 1}: отсутствует поле 'track'.", color=discord.Color.red()), ephemeral=True)
+                    return
+                if not Path(track['track']).exists():
+                    await ctx.send(embed=discord.Embed(description=f"⚠️ Предупреждение: файл `{track['track']}` не найден, но плейлист будет добавлен.", color=discord.Color.red()),
+                                   ephemeral=True)
 
-        if not voice_state.playlist_manager or voice_state.playlist_manager.is_empty:
-            await ctx.send("📭 Плейлист не загружен!")
-            return
+            playlist_path = config.PLAYLIST_PATH
+            os.makedirs(playlist_path, exist_ok=True)
 
-        pm = voice_state.playlist_manager
+            base_name = playlist.filename.replace('.json', '')
+            save_path = os.path.join(playlist_path, f"{base_name}.json")
 
-        embed = discord.Embed(
-            title="🎵 Информация о плейлисте",
-            description=f"Всего треков: {pm.total}\n"
-                        f"Осталось: {pm.remaining}\n"
-                        f"Текущий индекс: {pm.current_index + 1}",
-            color=discord.Color.blue()
-        )
+            counter = 1
+            while os.path.exists(save_path):
+                save_path = os.path.join(playlist_path, f"{base_name}_{counter}.json")
+                counter += 1
 
-        # Показываем текущий и следующий треки
-        current = pm.get_current_track()
-        if current:
-            name = Path(current.get("track", "")).stem
-            embed.add_field(
-                name="▶️ Текущий трек",
-                value=f"`{name}`\n"
-                      f"Старт: {current.get('start_delay', 0)}с | Энд: {current.get('end_delay', 0)}с",
-                inline=False
+            with open(save_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+
+            await ctx.send(embed=discord.Embed(
+                title=f"✅ Плейлист `{os.path.basename(save_path)}` добавлен!\n",
+                description=f"📁 Сохранён в: `{save_path}`\n"
+                            f"🎵 Треков: {len(data)}",
+                color=config.COLOR),
+                ephemeral=True
             )
 
-        next_track = pm.get_next_track()
-        if next_track:
-            name = Path(next_track.get("track", "")).stem
-            embed.add_field(
-                name="⏭️ Следующий трек",
-                value=f"`{name}`\n"
-                      f"Старт: {next_track.get('start_delay', 0)}с | Энд: {next_track.get('end_delay', 0)}с",
-                inline=False
-            )
-
-        await ctx.send(embed=embed)
+        except json.JSONDecodeError as e:
+            await ctx.send(embed=discord.Embed(description=f"❌ Ошибка парсинга JSON: {e}", color=discord.Color.red()), ephemeral=True)
+        except Exception as e:
+            self.logger.error(f"Ошибка добавления плейлиста: {e}")
+            await ctx.send(embed=discord.Embed(description=f"❌ Ошибка: {str(e)[:100]}", color=discord.Color.red()), ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

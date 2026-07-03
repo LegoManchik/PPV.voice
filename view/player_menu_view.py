@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import os
 import traceback
+import json
 
 from enum import Enum
 from dataclasses import dataclass
@@ -29,6 +30,7 @@ class ButtonEmojis(Enum):
     PAUSE = "<:pause:1501539835922616461>"
     RESUME = "<:resume:1501539806004645928>"
     STOP = "<:stop:1501546908257095791>"
+    SKIP = "<:skip:1522543997116223599>"
     REPEAT = "<:repeat:1501560148588757044>"
     VOLUME = "<:volume:1501555461919604927>"
     VOLUME_UP = "<:volume_up:1501545557058125954>"
@@ -218,7 +220,12 @@ class ControlButtons(ui.View):
         self.player.stop()
 
         if self._is_audio_file(file_path):
-            file = AudioFile(file_path, self.ctx.menu_state.player)
+            cached_source = self.ctx.voice_state._audio_cache.get_source(file_path)
+
+            if cached_source:
+                file = AudioFile(file_path, self.ctx.menu_state.player, source=cached_source)
+            else:
+                file = AudioFile(file_path, self.ctx.menu_state.player)
 
             await self.ctx.voice_state.play_file_fast(file, self.ctx.menu_state.archive)
 
@@ -286,7 +293,8 @@ class MusicControlView(ui.LayoutView):
         stop_all_btn.callback = self._stop_all_callback
 
         skip_btn = ui.Button(
-            label="⏭️ Пропустить",
+            emoji=ButtonEmojis.SKIP.value,
+            label="Пропустить",
             style=discord.ButtonStyle.secondary,
             custom_id="skip_song"
         )
@@ -298,10 +306,20 @@ class MusicControlView(ui.LayoutView):
         if os.path.exists(playlist_path):
             for file in os.listdir(playlist_path):
                 if file.endswith('.json'):
+                    file_path = os.path.join(playlist_path, file)
+
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            track_count = len(data) if isinstance(data, list) else 0
+                    except:
+                        track_count = 0
+
                     playlist_options.append(
                         SelectOption(
-                            label=file.replace('.json', ''),
-                            value=os.path.join(playlist_path, file)
+                            emoji="📁",
+                            label=f"{file.replace('.json', '')} | Треков: {track_count}",
+                            value=file_path
                         )
                     )
 

@@ -3,6 +3,10 @@ import asyncio
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
+from utils.logger import BotLogger
+
+logger = BotLogger().get_file_logger(__name__)
+
 
 class PlaylistTrack:
     def __init__(self, data: Dict[str, Any]):
@@ -34,8 +38,6 @@ class PlaylistTrack:
 
 
 class PlaylistManager:
-    """Менеджер плейлиста"""
-
     def __init__(self, json_path: str):
         self.json_path = json_path
         self.tracks: List[PlaylistTrack] = []
@@ -43,7 +45,6 @@ class PlaylistManager:
         self._load_playlist()
 
     def _load_playlist(self):
-        """Загрузить плейлист из JSON"""
         try:
             with open(self.json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -53,41 +54,35 @@ class PlaylistManager:
                 try:
                     self.tracks.append(PlaylistTrack(item))
                 except Exception as e:
-                    print(f"⚠️ Ошибка в треке {item.get('track', 'unknown')}: {e}")
+                    logger.warning(f"⚠️ Ошибка в треке {item.get('track', 'unknown')}: {e}")
 
             self.current_index = 0
-            print(f"✅ Загружено {len(self.tracks)} треков из {self.json_path}")
 
         except FileNotFoundError:
-            print(f"⚠️ Файл {self.json_path} не найден!")
+            logger.warning(f"⚠️ Файл {self.json_path} не найден!")
             self.tracks = []
         except json.JSONDecodeError as e:
-            print(f"❌ Ошибка парсинга JSON: {e}")
+            logger.error(f"❌ Ошибка парсинга JSON: {e}")
             self.tracks = []
 
     def reload(self):
-        """Перезагрузить плейлист"""
         self._load_playlist()
         self.current_index = 0
 
     def get_current_track(self) -> Optional[PlaylistTrack]:
-        """Получить текущий трек"""
         if 0 <= self.current_index < len(self.tracks):
             return self.tracks[self.current_index]
         return None
 
     def get_next_track(self) -> Optional[PlaylistTrack]:
-        """Получить следующий трек"""
         if self.current_index + 1 < len(self.tracks):
             return self.tracks[self.current_index + 1]
         return None
 
     def advance(self):
-        """Перейти к следующему треку"""
         self.current_index += 1
 
     def reset(self):
-        """Сбросить на начало"""
         self.current_index = 0
 
     @property
@@ -106,17 +101,3 @@ class PlaylistManager:
     def current_track_name(self) -> str:
         track = self.get_current_track()
         return track.filename if track else "None"
-
-    def get_tracks_list(self, limit: int = 10) -> List[str]:
-        result = []
-        start = max(0, self.current_index - 2)
-        end = min(len(self.tracks), start + limit)
-
-        for i in range(start, end):
-            track = self.tracks[i]
-            name = track.filename
-            marker = "▶️ " if i == self.current_index else f"{i + 1}. "
-            delays = f" (start: {track.start_delay}s, end: {track.end_delay}s)"
-            result.append(f"{marker}{name}{delays if i == self.current_index else ''}")
-
-        return result

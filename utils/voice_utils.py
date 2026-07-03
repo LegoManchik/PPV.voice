@@ -10,16 +10,15 @@ from discord.ext import commands
 
 import config
 
-from data.data_classes.audio_file import AudioFile
+from data.data_classes.audio_file import AudioFile, FFMPEG_OPTIONS
 from data.data_classes.archive import Archive, PlayerEmbedHelper
 from utils.logger import BotLogger
 from utils.playlist import PlaylistManager, PlaylistTrack
 from utils.sort_utils import first_number
 
 FFMPEG_INSTANT = {
-    'options': '-vn -bufsize 8k -probesize 8k -analyzeduration 0 -fflags nobuffer -flags low_delay -loglevel error -hide_banner'
+    'options': '-vn -bufsize 8k -probesize 8k -analyzeduration 0 -fflags nobuffer -flags low_delay -loglevel quiet -hide_banner'
 }
-
 
 logger = BotLogger().get_file_logger(__name__)
 
@@ -33,6 +32,7 @@ class UltraFastAudioCache:
     def __init__(self, max_concurrent: int = 2):
         self._cache: Dict[str, bytes] = {}
         self._sources: Dict[str, discord.FFmpegPCMAudio] = {}
+        self._source_cache: Dict[str, discord.PCMVolumeTransformer] = {}  # <-- ДОБАВЛЕНО
         self._preloading: Dict[str, asyncio.Future] = {}
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._executor = None
@@ -154,34 +154,22 @@ class UltraFastAudioCache:
 
         logger.info(f"✅ Предзагружено {success}/{len(files)} файлов")
 
-    def get_source(self, file_path: str) -> PCMVolumeTransformer[AudioSource | Any]:
-        if file_path in self._cache:
-            data = self._cache[file_path]
-            source = discord.FFmpegPCMAudio(
-                io.BytesIO(data),
-                pipe=True,
-                **FFMPEG_INSTANT
-            )
-            return discord.PCMVolumeTransformer(source)
-        else:
-            logger.debug(f"Файл не в кэше, загружаем с диска: {Path(file_path).name}")
-            source = discord.FFmpegPCMAudio(file_path, **FFMPEG_INSTANT)
-            return discord.PCMVolumeTransformer(source)
+    def get_source(self, file_path: str) -> Optional[discord.PCMVolumeTransformer]:
+        data = self._cache.get(file_path)
 
-    def get_source_instant(self, file_path: str) -> PCMVolumeTransformer[AudioSource | Any] | None:
-        if file_path in self._cache:
-            data = self._cache[file_path]
-            source = discord.FFmpegPCMAudio(
-                io.BytesIO(data),
-                pipe=True,
-                **FFMPEG_INSTANT
-            )
-            return discord.PCMVolumeTransformer(source)
-        logger.debug(f"Файл не в кэше (instant): {Path(file_path).name}")
-        return None
+        if data is None:
+            return None
+
+        source = discord.FFmpegPCMAudio(
+            io.BytesIO(data[:]),
+            pipe=True,
+            **FFMPEG_INSTANT
+        )
+
+        return discord.PCMVolumeTransformer(source)
 
     def is_preloaded(self, file_path: str) -> bool:
-        return file_path in self._sources
+        return file_path in self._sources or file_path in self._cache
 
     def is_ready(self) -> bool:
         return self._ready
@@ -189,6 +177,7 @@ class UltraFastAudioCache:
     def clear_cache(self):
         self._cache.clear()
         self._sources.clear()
+        self._source_cache.clear()  # <-- ДОБАВЛЕНО
         if self._executor:
             self._executor.shutdown(wait=False)
             self._executor = None
@@ -199,6 +188,7 @@ class UltraFastAudioCache:
         return {
             "files_in_memory": len(self._cache),
             "ready_sources": len(self._sources),
+            "source_cache": len(self._source_cache),  # <-- ДОБАВЛЕНО
             "total_memory_mb": round(total_mb, 2),
             "loading": len(self._preloading)
         }
@@ -255,19 +245,20 @@ class VoiceState:
         await self._play_single_song(file, archive)
 
     async def _play_single_song(self, file: AudioFile, archive: Archive):
-        source = self._audio_cache.get_source_instant(file.filename)
+        if self.voice and self.voice.is_playing:
+            self.voice.stop()
+
+        source = self._audio_cache.get_source(file.filename)
 
         if source is None:
-            player_embed = self.ctx.menu_state.player.embeds[1]
-            player_embed.description = f'```🔄 Загрузка: {file.filename}```'
-            await self.ctx.menu_state.player.edit(embeds=[self.ctx.menu_state.player.embeds[0], player_embed])
-
             await self._audio_cache.preload(file.filename)
-            source = self._audio_cache.get_source_instant(file.filename)
+            source = self._audio_cache.get_source(file.filename)
 
             if source is None:
-                player_embed.description = '```❌ Ошибка загрузки```'
-                await self.ctx.menu_state.player.edit(embeds=[self.ctx.menu_state.player.embeds[0], player_embed])
+                if self.ctx.menu_state and self.ctx.menu_state.player:
+                    player_embed = self.ctx.menu_state.player.embeds[1]
+                    player_embed.description = '```❌ Ошибка загрузки```'
+                    await self.ctx.menu_state.player.edit(embeds=[self.ctx.menu_state.player.embeds[0], player_embed])
                 return
 
         file.source = source
@@ -276,11 +267,12 @@ class VoiceState:
         self.current = file
         self._is_playing_single = True
 
-        self.ctx.menu_state.music_player.start(self.current, self.current.player, archive)
+        if self.ctx.menu_state and self.ctx.menu_state.music_player:
+            self.ctx.menu_state.music_player.start(self.current, self.current.player, archive)
 
         def after_playback(error):
             if error:
-                print(f"Ошибка: {error}")
+                logger.error(f"Ошибка: {error}")
 
             self._is_playing_single = False
             asyncio.run_coroutine_threadsafe(
@@ -346,19 +338,26 @@ class VoiceState:
         await self._play_playlist_song(file, archive, current)
 
     async def _play_playlist_song(self, file: AudioFile, archive: Archive, track: PlaylistTrack):
-        source = self._audio_cache.get_source_instant(file.filename)
+        if self.voice and self.voice.is_playing():
+            self.voice.stop()
+
+        self._is_playing_single = False
+        self._is_playing_playlist = False
+        self.current = None
+
+        source = self._audio_cache.get_source(file.filename)
 
         if source is None:
-            if self.ctx.menu_state and self.ctx.menu_state.player:
-                player_embed = self.ctx.menu_state.player.embeds[1]
-                player_embed.description = f'```🔄 Загрузка: {file.filename}```'
-                await self.ctx.menu_state.player.edit(embeds=[self.ctx.menu_state.player.embeds[0], player_embed])
-
+            await self._show_status(f"🔄 Загрузка: {Path(file.filename).name}")
             await self._audio_cache.preload(file.filename)
-            source = self._audio_cache.get_source_instant(file.filename)
+            source = self._audio_cache.get_source(file.filename)
 
             if source is None:
-                logger.error(f"❌ Не удалось загрузить трек для плейлиста: {Path(file.filename).name}")
+                if self.ctx.menu_state and self.ctx.menu_state.player:
+                    player_embed = self.ctx.menu_state.player.embeds[1]
+                    player_embed.description = f'```❌ Ошибка загрузки: {Path(file.filename).name}```'
+                    await self.ctx.menu_state.player.edit(embeds=[self.ctx.menu_state.player.embeds[0], player_embed])
+
                 self.playlist_manager.advance()
                 await self.play_next_in_playlist(archive)
                 return
@@ -376,6 +375,7 @@ class VoiceState:
             )
             await self.ctx.menu_state.player.edit(embeds=[archive_embed, self.ctx.menu_state.player.embeds[1]])
 
+        if self.ctx.menu_state and self.ctx.menu_state.music_player:
             self.ctx.menu_state.music_player.start(self.current, self.current.player, archive)
 
         def after_playback(error):
@@ -494,6 +494,7 @@ def get_global_cache() -> UltraFastAudioCache:
     global _global_cache
     if _global_cache is None:
         _global_cache = UltraFastAudioCache(max_concurrent=2)
+
     return _global_cache
 
 
