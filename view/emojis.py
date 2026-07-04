@@ -1,0 +1,16 @@
+from enum import Enum
+
+
+class ButtonIcons(Enum):
+    PAUSE = "<:pause:1501539835922616461>"
+    RESUME = "<:resume:1501539806004645928>"
+    STOP = "<:stop:1501546908257095791>"
+    SKIP = "<:skip:1522543997116223599>"
+    REPEAT = "<:repeat:1501560148588757044>"
+    VOLUME = "<:volume:1501555461919604927>"
+    VOLUME_UP = "<:volume_up:1501545557058125954>"
+    VOLUME_DOWN = "<:volume_down:1501545554512056423>"
+    VOLUME_10 = "<:volume_10:1501553579972886679>"
+    VOLUME_50 = "<:volume_50:1501553577544515635>"
+    CONNECT = "<:connect:1522822824404848651>"
+    DISCONNECT = "<:disconnect:1522822826153742468>"

@@ -11,6 +11,8 @@ from logging.handlers import RotatingFileHandler
 import discord
 from discord.ext import commands
 
+from view.embed import BaseEmbeds
+
 
 def interaction_error_handler(logger: logging.Logger):
 
@@ -22,7 +24,8 @@ def interaction_error_handler(logger: logging.Logger):
             try:
                 return await func(self, interaction, *args, **kwargs)
             except Exception as e:
-                logger.error(f"Ошибка в {interaction.data.get('custom_id')}: {e}")
+                await interaction.followup.send(embed=BaseEmbeds.error(f"❌ **Ошибка в {interaction.data.get('custom_id')}:** `{e}`"), ephemeral=True)
+                logger.error(f"❌ Ошибка в {interaction.data.get('custom_id')}: {e}")
                 traceback.print_exc()
         return wrapper
     return decorator

@@ -6,6 +6,8 @@ from discord.utils import get
 
 import config
 
+from view.embed import BaseEmbeds
+
 
 def is_moderator(func):
     @wraps(func)
@@ -32,10 +34,7 @@ def is_moderator(func):
             return await func(*args, **kwargs)
         else:
             await interaction.response.send_message(
-                embed=discord.Embed(
-                    description="❌ У вас нет прав для выполнения этой команды!",
-                    color=discord.Color.red()
-                ),
+                embed=BaseEmbeds.error("❌ У вас нет прав для выполнения этой команды!"),
                 ephemeral=True
             )
             return

@@ -9,6 +9,8 @@ from data.database import TicketBookingDatabase
 from utils.decorators import is_moderator
 from utils.logger import BotLogger
 
+from view.embed import BaseEmbeds
+
 logger = BotLogger().get_file_logger(__name__)
 
 
@@ -16,7 +18,7 @@ logger = BotLogger().get_file_logger(__name__)
 async def toggle_chat(interaction: discord.Interaction, user: discord.User):
     db = TicketBookingDatabase()
     if not db.get_ticket_by_channel(interaction.channel.id):
-        await interaction.response.send_message(embed=discord.Embed(description="❌ Только в тикете!", color=discord.Color.blue()), ephemeral=True, delete_after=3)
+        await interaction.response.send_message(embed=BaseEmbeds.error("❌ Только в тикете!"), ephemeral=True, delete_after=3)
         return
 
     current_perms = interaction.channel.overwrites_for(user)

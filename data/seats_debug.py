@@ -151,7 +151,7 @@ class SeatsDebug:
                 if mode not in MODE_VALUES:
                     errors.append(str(NonExistentArgumentError("mode", mode)))
         except Exception as e:
-            errors.append(f"Ошибка при проверке mode: {e}")
+            errors.append(f"❌ Ошибка при проверке mode: {e}")
 
     @classmethod
     def check_booking_limit(cls, errors: list):
@@ -192,7 +192,7 @@ class SeatsDebug:
                             f"⚠️ Некорректное значение `booking_limit` исправлено на {DEFAULT_BOOKING_LIMIT}")
 
         except Exception as e:
-            errors.append(f"Ошибка при проверке booking_limit: {e}")
+            errors.append(f"❌ Ошибка при проверке booking_limit: {e}")
 
     @classmethod
     def check_global_menu(cls, errors: list):
@@ -225,7 +225,7 @@ class SeatsDebug:
                 cls.check_lang_keys(image, "menu.image", errors)
 
         except Exception as e:
-            errors.append(f"Ошибка при проверке global_menu: {e}")
+            errors.append(f"❌ Ошибка при проверке global_menu: {e}")
 
     @classmethod
     def check_floor(cls, errors: list):
@@ -290,7 +290,7 @@ class SeatsDebug:
                         errors.append(str(LostLimitError(f"{key}.{list_key}.limit")))
 
         except Exception as e:
-            errors.append(f"Ошибка при проверке floor: {e}")
+            errors.append(f"❌ Ошибка при проверке floor: {e}")
 
 
 if __name__ == "__main__":

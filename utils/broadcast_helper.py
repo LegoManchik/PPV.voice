@@ -8,6 +8,7 @@ import config
 from data.database import TicketBookingDatabase
 from utils.decorators import is_moderator
 from utils.logger import BotLogger
+from view.embed import BaseEmbeds
 
 logger = BotLogger().get_file_logger(__name__)
 
@@ -83,14 +84,11 @@ async def broadcast_parallel(interaction: discord.Interaction, message: discord.
 
     if not recipients:
         await interaction.response.send_message(
-           embed=discord.Embed(description="❌ Нет получателей для рассылки!", color=discord.Color.red()), ephemeral=True)
+           embed=BaseEmbeds.error("❌ Нет получателей для рассылки!"), ephemeral=True)
         return
 
     await interaction.response.send_message(
-        embed=discord.Embed(
-            description=f"📤 Начинаю рассылку {len(recipients)} получателям...",
-            color=discord.Color.blue()
-        ),
+        embed=BaseEmbeds.info(f"📤 Начинаю рассылку {len(recipients)} получателям..."),
         ephemeral=True
     )
 
@@ -109,10 +107,7 @@ async def broadcast_parallel(interaction: discord.Interaction, message: discord.
 
     target_name = "тикеты" if target == "channel" else "ЛС"
     await interaction.edit_original_response(
-        embed=discord.Embed(
-            description=f"✅ **Рассылка в {target_name} завершена!**\n📨 Отправлено: {success}/{len(recipients)}\n❌ Ошибок: {failed}",
-            color=discord.Color.green()
-        )
+        embed=BaseEmbeds.info(f"✅ **Рассылка в {target_name} завершена!**\n📨 Отправлено: {success}/{len(recipients)}\n❌ Ошибок: {failed}")
     )
 
 

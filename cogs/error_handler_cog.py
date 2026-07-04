@@ -15,7 +15,7 @@ class ErrorHandler(commands.Cog):
     async def on_command_error(self, ctx: commands.Context, error: discord.errors.Any):
         error = getattr(error, 'original', error)
 
-        self.logger.error(f"Ошибка в команде {ctx.command}: {error}")
+        self.logger.error(f"❌ Ошибка в команде {ctx.command}: {error}")
         traceback.print_exception(type(error), error, error.__traceback__)
 
 

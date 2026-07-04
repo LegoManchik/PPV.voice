@@ -15,6 +15,7 @@ from utils.logger import BotLogger
 from utils.broadcast_helper import send_global_msg, send_global_personal_msg
 from utils.ticket_permissions_helper import setup_context_menus
 from view.ticket_booking_view import StartBookingView, SEAT_RESERVED_EMBED, StartVIPBookingView
+from view.embed import BaseEmbeds
 
 
 class TicketBooking(commands.Cog):
@@ -68,17 +69,17 @@ class TicketBooking(commands.Cog):
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def add_ping_user(self, ctx: commands.Context, user: discord.User):
         if JsonHelper.add_user_in_list(user.id):
-            await ctx.send(embed=discord.Embed(description=f"✅ Пользователь {user.mention} теперь будет пинговаться при поступлении новых заявок на бронь"))
+            await ctx.send(embed=BaseEmbeds.success(f"✅ Пользователь {user.mention} теперь будет пинговаться при поступлении новых заявок на бронь"))
         else:
-            await ctx.send(embed=discord.Embed(description=f"❌ Пользователь {user.mention} уже есть в списке"))
+            await ctx.send(embed=BaseEmbeds.error(f"❌ Пользователь {user.mention} уже есть в списке"))
 
     @commands.hybrid_command(name="remove_ping_user", description="Убрать пользователя из пингов, при заявках")
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def remove_ping_user(self, ctx: commands.Context, user: discord.User):
         if JsonHelper.remove_user_in_list(user.id):
-            await ctx.send(embed=discord.Embed(description=f"✅ Пользователь {user.mention} теперь **НЕ** будет пинговаться при поступлении новых заявок на бронь"))
+            await ctx.send(embed=BaseEmbeds.success(f"✅ Пользователь {user.mention} теперь **НЕ** будет пинговаться при поступлении новых заявок на бронь"))
         else:
-            await ctx.send(embed=discord.Embed(description=f"❌ Пользователя {user.mention} нет в списке"))
+            await ctx.send(embed=BaseEmbeds.error(f"❌ Пользователя {user.mention} нет в списке"))
 
     @commands.hybrid_command(name="manage_all_ticket_perms")
     @app_commands.describe(action="Выберите действие: выдать или отобрать права")
@@ -93,12 +94,12 @@ class TicketBooking(commands.Cog):
         action = action.lower()
         category = get(ctx.guild.categories, id=config.TICKETS_CATEGORY_ID)
         if not category:
-            await ctx.send(embed=discord.Embed(description="❌ Категория тикетов не найдена!", color=discord.Color.blue()))
+            await ctx.send(embed=BaseEmbeds.error("❌ Категория тикетов не найдена!"))
             return
 
         tickets = list(category.channels)
         if not tickets:
-            await ctx.send(embed=discord.Embed(description="ℹ️ Нет тикетов для обработки!", color=discord.Color.blue()))
+            await ctx.send(embed=BaseEmbeds.info("ℹ️ Нет тикетов для обработки!"))
             return
 
         action_name = "выдачу" if action == "grant" else "отзыв"
@@ -160,7 +161,7 @@ class TicketBooking(commands.Cog):
             description=f"📨 Обработано прав: {results['success']}\n"
                         f"❌ Ошибок: {results['failed']}\n"
                         f"👤 Пользователь не найден: {results['no_user']}",
-            color=discord.Color.blue()
+            color=config.COLOR
         )
         await progress_msg.edit(content=None, embed=embed)
 

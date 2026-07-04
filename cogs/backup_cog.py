@@ -6,6 +6,7 @@ from datetime import datetime
 
 import config
 from utils.logger import BotLogger
+from view.embed import BaseEmbeds
 
 
 class BackupSystem(commands.Cog):
@@ -49,7 +50,7 @@ class BackupSystem(commands.Cog):
 
             return backup_name
         except Exception as e:
-            self.logger.error(f'Ошибка при создании бэкапа: {e}')
+            self.logger.error(f'❌ Ошибка при создании бэкапа: {e}')
             return None
 
     @commands.hybrid_command(name="backup")
@@ -57,19 +58,19 @@ class BackupSystem(commands.Cog):
     async def backup(self, ctx: commands.Context):
         backup_name = await self.create_backup(f"backup_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.db")
         if backup_name:
-            await ctx.send(embed=discord.Embed(description=f'✅ Резервная копия создана: `{backup_name}`'))
+            await ctx.send(embed=BaseEmbeds.success(f'✅ Резервная копия создана: `{backup_name}`'))
         else:
-            await ctx.send(embed=discord.Embed(description='❌ Не удалось создать резервную копию'))
+            await ctx.send(embed=BaseEmbeds.error('❌ Не удалось создать резервную копию'))
 
     @commands.hybrid_command(name="backups_info")
     @commands.has_any_role(config.SUPERVISOR_ROLE_ID, config.OPERATOR_ROLE_ID)
     async def backups_info(self, ctx: commands.Context):
         backups = sorted(os.listdir(self.BACKUPS_DIR), reverse=True)
         if not backups:
-            await ctx.send("Нет доступных резервных копий")
+            await ctx.send(embed=BaseEmbeds.error("❌ Нет доступных резервных копий"))
             return
 
-        embed = discord.Embed(title="📊 Информация о резервных копиях", color=0x00ff00)
+        embed = discord.Embed(title="📊 Информация о резервных копиях", color=config.COLOR)
 
         recent_backups = "\n".join(backups[:5])
         embed.add_field(name="Последние бэкапы", value=recent_backups, inline=False)

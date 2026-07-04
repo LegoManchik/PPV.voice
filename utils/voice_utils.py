@@ -11,10 +11,11 @@ from discord.ext import commands
 import config
 
 from data.data_classes.audio_file import AudioFile, FFMPEG_OPTIONS
-from data.data_classes.archive import Archive, PlayerEmbedHelper
+from data.data_classes.archive import Archive
 from utils.logger import BotLogger
 from utils.playlist import PlaylistManager, PlaylistTrack
 from utils.sort_utils import first_number
+from view.embed import BaseEmbeds
 
 FFMPEG_INSTANT = {
     'options': '-vn -bufsize 8k -probesize 8k -analyzeduration 0 -fflags nobuffer -flags low_delay -loglevel quiet -hide_banner'
@@ -64,15 +65,15 @@ class UltraFastAudioCache:
             except:
                 pass
 
-            logger.debug(f"Декодирован в PCM: {Path(file_path).name} ({len(pcm_data) / 1024:.1f} KB)")
+            logger.debug(f"✅ Декодирован в PCM: {Path(file_path).name} ({len(pcm_data) / 1024:.1f} KB)")
 
             return pcm_data
 
         except subprocess.CalledProcessError as e:
-            logger.error(f"Ошибка FFmpeg при декодировании {file_path}: {e.stderr.decode() if e.stderr else str(e)}")
+            logger.error(f"❌ Ошибка FFmpeg при декодировании {file_path}: {e.stderr.decode() if e.stderr else str(e)}")
             return None
         except Exception as e:
-            logger.error(f"Ошибка декодирования {file_path}: {e}")
+            logger.error(f"❌ Ошибка декодирования {file_path}: {e}")
             return None
 
     def _create_source_from_pcm(self, pcm_data: bytes) -> discord.FFmpegPCMAudio:
@@ -127,7 +128,7 @@ class UltraFastAudioCache:
 
         except Exception as e:
             future.set_exception(e)
-            logger.error(f"Ошибка при предзагрузке {Path(file_path).name}: {e}")
+            logger.error(f"❌ Ошибка при предзагрузке {Path(file_path).name}: {e}")
             raise
         finally:
             await self._preloading.pop(file_path, None)
@@ -135,13 +136,13 @@ class UltraFastAudioCache:
     async def preload_folder(self, folder_path: str):
         folder = Path(folder_path)
         if not folder.exists():
-            logger.warning(f"Папка не найдена: {folder_path}")
+            logger.warning(f"⚠ Папка не найдена: {folder_path}")
             return
 
         files = list(folder.glob("*.mp3")) + list(folder.glob("*.wav")) + list(folder.glob("*.webm"))
 
         if not files:
-            logger.warning(f"Нет аудиофайлов в папке: {folder_path}")
+            logger.warning(f"⚠ Нет аудиофайлов в папке: {folder_path}")
             return
 
         logger.info(f"🔄 Предзагрузка {len(files)} файлов из {folder_path}...")
@@ -177,7 +178,7 @@ class UltraFastAudioCache:
     def clear_cache(self):
         self._cache.clear()
         self._sources.clear()
-        self._source_cache.clear()  # <-- ДОБАВЛЕНО
+        self._source_cache.clear()
         if self._executor:
             self._executor.shutdown(wait=False)
             self._executor = None
@@ -188,7 +189,7 @@ class UltraFastAudioCache:
         return {
             "files_in_memory": len(self._cache),
             "ready_sources": len(self._sources),
-            "source_cache": len(self._source_cache),  # <-- ДОБАВЛЕНО
+            "source_cache": len(self._source_cache),
             "total_memory_mb": round(total_mb, 2),
             "loading": len(self._preloading)
         }
@@ -210,19 +211,22 @@ class VoiceState:
         self._is_playing_single = False
 
     @property
-    def is_playing(self):
-        return self.voice and self.current
+    def is_playing(self) -> bool:
+        return self.voice and self.current and self.voice.is_playing()
+
+    def is_connected(self) -> bool:
+        return self.voice is not None and self.voice.is_connected()
 
     def load_playlist(self, json_path: str):
         self.playlist_manager = PlaylistManager(json_path)
         self._is_playing_playlist = False
 
         if self.playlist_manager and not self.playlist_manager.is_empty:
-            logger.info(f"Загружен плейлист: {Path(json_path).name} ({self.playlist_manager.total} треков)")
+            logger.info(f"✅ Загружен плейлист: {Path(json_path).name} ({self.playlist_manager.total} треков)")
         else:
             logger.warning(f"⚠️ Плейлист пуст или не загружен: {json_path}")
 
-    async def play_file_fast(self, file: AudioFile, archive: Archive):
+    async def play_file(self, file: AudioFile, archive: Archive):
         if self._is_playing_playlist:
             self._is_playing_playlist = False
             if self.voice and self.voice.is_playing():
@@ -236,7 +240,7 @@ class VoiceState:
         track_name = Path(file.filename).stem
         archive.add_track(track_name)
 
-        archive_embed = PlayerEmbedHelper.create_archive_embed(
+        archive_embed = BaseEmbeds.processed_archive(
             self.ctx.menu_state.player.embeds[0],
             archive
         )
@@ -245,7 +249,7 @@ class VoiceState:
         await self._play_single_song(file, archive)
 
     async def _play_single_song(self, file: AudioFile, archive: Archive):
-        if self.voice and self.voice.is_playing:
+        if self.voice and self.voice.is_playing():
             self.voice.stop()
 
         source = self._audio_cache.get_source(file.filename)
@@ -256,9 +260,7 @@ class VoiceState:
 
             if source is None:
                 if self.ctx.menu_state and self.ctx.menu_state.player:
-                    player_embed = self.ctx.menu_state.player.embeds[1]
-                    player_embed.description = '```❌ Ошибка загрузки```'
-                    await self.ctx.menu_state.player.edit(embeds=[self.ctx.menu_state.player.embeds[0], player_embed])
+                    await self._show_status("❌ Ошибка загрузки")
                 return
 
         file.source = source
@@ -272,7 +274,7 @@ class VoiceState:
 
         def after_playback(error):
             if error:
-                logger.error(f"Ошибка: {error}")
+                logger.error(f"❌ Ошибка: {error}")
 
             self._is_playing_single = False
             asyncio.run_coroutine_threadsafe(
@@ -286,12 +288,7 @@ class VoiceState:
         self._is_playing_single = False
 
         archive_embed = self.ctx.menu_state.player.embeds[0]
-        empty_embed = discord.Embed(
-            title='Сейчас играет 🎶:',
-            color=config.COLOR,
-            description='```Сейчас ничего не играет :(```'
-        )
-        await self.ctx.menu_state.player.edit(embeds=[archive_embed, empty_embed])
+        await self.ctx.menu_state.player.edit(embeds=[archive_embed, BaseEmbeds.player()])
         self.current = None
 
     async def play_next_in_playlist(self, archive: Archive):
@@ -324,7 +321,7 @@ class VoiceState:
         logger.info(f"▶️ Плейлист: воспроизведение {track_name} ({self.playlist_manager.current_index + 1}/{self.playlist_manager.total})")
 
         if self.ctx.menu_state and self.ctx.menu_state.player:
-            archive_embed = PlayerEmbedHelper.create_archive_embed(
+            archive_embed = BaseEmbeds.processed_archive(
                 self.ctx.menu_state.player.embeds[0],
                 archive
             )
@@ -353,10 +350,8 @@ class VoiceState:
             source = self._audio_cache.get_source(file.filename)
 
             if source is None:
-                if self.ctx.menu_state and self.ctx.menu_state.player:
-                    player_embed = self.ctx.menu_state.player.embeds[1]
-                    player_embed.description = f'```❌ Ошибка загрузки: {Path(file.filename).name}```'
-                    await self.ctx.menu_state.player.edit(embeds=[self.ctx.menu_state.player.embeds[0], player_embed])
+                if self.ctx.menu_state and self.ctx.menu_state.player: \
+                    await self._show_status(f"❌ Ошибка загрузки: {Path(file.filename).name}")
 
                 self.playlist_manager.advance()
                 await self.play_next_in_playlist(archive)
@@ -369,7 +364,7 @@ class VoiceState:
         self._is_playing_playlist = True
 
         if self.ctx.menu_state and self.ctx.menu_state.player:
-            archive_embed = PlayerEmbedHelper.create_archive_embed(
+            archive_embed = BaseEmbeds.processed_archive(
                 self.ctx.menu_state.player.embeds[0],
                 archive
             )
@@ -380,7 +375,7 @@ class VoiceState:
 
         def after_playback(error):
             if error:
-                logger.error(f"Ошибка воспроизведения в плейлисте: {error}")
+                logger.error(f"❌ Ошибка воспроизведения в плейлисте: {error}")
 
             if self._is_playing_playlist and self.voice and not self.voice.is_playing():
                 asyncio.run_coroutine_threadsafe(
@@ -435,17 +430,11 @@ class VoiceState:
         try:
             if self.ctx.menu_state and self.ctx.menu_state.player:
                 archive_embed = self.ctx.menu_state.player.embeds[0]
-                status_embed = discord.Embed(
-                    title='Сейчас играет 🎶:',
-                    color=config.COLOR,
-                    description=f'```{message}```'
-                )
-                status_embed.set_footer(text="")
-                await self.ctx.menu_state.player.edit(embeds=[archive_embed, status_embed])
+                await self.ctx.menu_state.player.edit(embeds=[archive_embed, BaseEmbeds.player(message)])
             else:
-                logger.warning("Не удалось обновить статус: player отсутствует")
+                logger.warning("⚠ Не удалось обновить статус: player отсутствует")
         except Exception as e:
-            logger.error(f"Ошибка обновления статуса: {e}")
+            logger.error(f"❌ Ошибка обновления статуса: {e}")
 
     async def _stop_playback(self, message: str = "Воспроизведение остановлено"):
         self._is_playing_playlist = False
@@ -457,17 +446,9 @@ class VoiceState:
         try:
             if self.ctx.menu_state and self.ctx.menu_state.player:
                 archive_embed = self.ctx.menu_state.player.embeds[0]
-                empty_embed = discord.Embed(
-                    title='Сейчас играет 🎶:',
-                    color=config.COLOR,
-                    description=f'```{message}```'
-                )
-                empty_embed.set_footer(text="")
-                await self.ctx.menu_state.player.edit(embeds=[archive_embed, empty_embed])
-            else:
-                logger.warning(f"Не удалось обновить UI: {message}")
+                await self.ctx.menu_state.player.edit(embeds=[archive_embed, BaseEmbeds.player()])
         except Exception as e:
-            logger.error(f"Ошибка остановки воспроизведения: {e}")
+            logger.error(f"❌ Ошибка остановки воспроизведения: {e}")
 
         self.current = None
 
@@ -479,6 +460,22 @@ class VoiceState:
             await self.voice.disconnect()
             self.voice = None
             self.current = None
+
+    async def reset_player(self):
+        if self.voice and self.voice.is_playing():
+            self.voice.stop()
+
+        self._is_playing_playlist = False
+        self._is_playing_single = False
+        self.current = None
+
+        if self.ctx.menu_state and self.ctx.menu_state.music_player:
+            self.ctx.menu_state.music_player.stop()
+
+        if self.playlist_manager:
+            self.playlist_manager.reset()
+
+        logger.info("🔄 Плеер сброшен в исходное состояние")
 
     def clear_audio_cache(self):
         self._audio_cache.clear_cache()
